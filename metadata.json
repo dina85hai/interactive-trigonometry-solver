@@ -1,0 +1,5 @@
+{
+  "name": "Interactive Trigonometry Solver",
+  "description": "An interactive web application for learning and practicing trigonometric equations. It features visualizations of trigonometric functions, a unit circle view, and step-by-step animated solutions for determining the signs of trig ratios and solving equations.",
+  "requestFramePermissions": []
+}
