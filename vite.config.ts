@@ -5,6 +5,9 @@ import react from '@vitejs/plugin-react';
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
     return {
+      // Required for project-site GitHub Pages:
+      // https://dina85hai.github.io/interactive-trigonometry-solver/
+      base: mode === 'production' ? '/interactive-trigonometry-solver/' : '/',
       server: {
         port: 3000,
         host: '0.0.0.0',
