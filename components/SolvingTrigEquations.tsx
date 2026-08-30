@@ -1,4 +1,4 @@
-import React, { useState, PropsWithChildren, useEffect, useRef } from 'react';
+import React, { useState, PropsWithChildren, useEffect, useRef, useMemo, useCallback } from 'react';
 import UnitCircle from './UnitCircle';
 
 type TrigType = 'sin' | 'cos' | 'tan';
@@ -186,9 +186,8 @@ const SolvingTrigEquations = () => {
   };
 
   const solveForQuiz = (func: TrigType, val: number, min: number, max: number): number[] => {
-    let solutions: number[] = [];
+    const solutions: number[] = [];
     const period = func === 'tan' ? 180 : 360;
-    const maxIterations = Math.ceil((max - min) / period) + 2;
 
     let baseSolutions: number[] = [];
     if (func === 'sin' && val >= -1 && val <= 1) {
@@ -202,12 +201,13 @@ const SolvingTrigEquations = () => {
         baseSolutions = [principal];
     }
 
-    baseSolutions.forEach(baseSol => {
-        for (let n = -maxIterations; n <= maxIterations; n++) {
-            const sol = baseSol + n * period;
-            if (sol >= min && sol < max) {
-                solutions.push(parseFloat(sol.toFixed(0)));
-            }
+    [...new Set(baseSolutions)].forEach(baseSol => {
+      const firstOffset = Math.ceil((min - baseSol) / period);
+      const lastOffset = Math.ceil((max - baseSol) / period) - 1;
+
+      for (let offset = firstOffset; offset <= lastOffset; offset++) {
+        const sol = baseSol + offset * period;
+        solutions.push(parseFloat(sol.toFixed(0)));
         }
     });
 
@@ -345,14 +345,6 @@ const SolvingTrigEquations = () => {
     }
   };
 
-  const solveEquation = (): string[] => {
-    const val = Number(constant);
-    if (isNaN(val)) return [];
-    
-    const solutions = solveForQuiz(equationType, val, 0, 360);
-    return solutions.map(s => s.toFixed(1));
-  };
-  
   const solveInteractive = (): InteractiveSolution | null => {
     const val = Number(interactiveVal);
     if (isNaN(val) || interactiveError) return null;
@@ -382,21 +374,22 @@ const SolvingTrigEquations = () => {
     return { solutions: principalSolutions, principalSolutions, allQuadrantAngles };
   };
   
-  const interactiveResult = solveInteractive();
+  // Only re-derive the reference angle / quadrant geometry when the actual
+  // inputs change, instead of on every render (e.g. graph mousemove).
+  const interactiveResult = useMemo(
+    () => solveInteractive(),
+    [interactiveVal, interactiveTrigType, interactiveError]
+  );
   const allQuadAngles = interactiveResult?.allQuadrantAngles;
   const refAngle = allQuadAngles?.q1;
 
   const val = Number(interactiveVal);
-  let relevantQuadrants: number[] = [];
-  if (interactiveResult) {
-      if (interactiveTrigType === 'sin') {
-          relevantQuadrants = val >= 0 ? [1, 2] : [3, 4];
-      } else if (interactiveTrigType === 'cos') {
-          relevantQuadrants = val >= 0 ? [1, 4] : [2, 3];
-      } else if (interactiveTrigType === 'tan') {
-          relevantQuadrants = val >= 0 ? [1, 3] : [2, 4];
-      }
-  }
+  const relevantQuadrants = useMemo(() => {
+    if (!interactiveResult) return [];
+    if (interactiveTrigType === 'sin') return val >= 0 ? [1, 2] : [3, 4];
+    if (interactiveTrigType === 'cos') return val >= 0 ? [1, 4] : [2, 3];
+    return val >= 0 ? [1, 3] : [2, 4]; // tan
+  }, [interactiveResult, interactiveTrigType, val]);
 
   const resetInteractiveSteps = () => {
     setSolStep(0);
@@ -542,11 +535,23 @@ const SolvingTrigEquations = () => {
   };
 
 
-  const solutions = solveEquation();
-  
-  const valueForRefAngle = Number(constant);
-  let refAngleForDisplay: number | null = null;
-  if (!isNaN(valueForRefAngle)) {
+  // solveForQuiz was previously invoked twice per render with identical
+  // arguments (once via solveEquation() for the string list, once for
+  // numericSolutions). Compute it once and derive both from that.
+  const numericSolutions = useMemo(() => {
+    const v = Number(constant);
+    if (isNaN(v)) return [];
+    return solveForQuiz(equationType, v, 0, 360);
+  }, [equationType, constant]);
+
+  const solutions = useMemo(
+    () => numericSolutions.map(s => s.toFixed(1)),
+    [numericSolutions]
+  );
+
+  const refAngleForDisplay = useMemo(() => {
+    const valueForRefAngle = Number(constant);
+    if (isNaN(valueForRefAngle)) return null;
     let refAngleRad: number = NaN;
     if (equationType === 'sin' && Math.abs(valueForRefAngle) <= 1) {
         refAngleRad = Math.asin(Math.abs(valueForRefAngle));
@@ -555,23 +560,37 @@ const SolvingTrigEquations = () => {
     } else if (equationType === 'tan') {
         refAngleRad = Math.atan(Math.abs(valueForRefAngle));
     }
-    if (!isNaN(refAngleRad)) {
-        refAngleForDisplay = (refAngleRad * 180) / Math.PI;
-    }
-  }
+    return isNaN(refAngleRad) ? null : (refAngleRad * 180) / Math.PI;
+  }, [equationType, constant]);
 
-  const getRelevantQuadrantsForHighlight = () => {
-    const val = Number(constant);
-    if (isNaN(val)) return [];
-    if (equationType === 'sin') return val >= 0 ? [1, 2] : [3, 4];
-    if (equationType === 'cos') return val >= 0 ? [1, 4] : [2, 3];
-    if (equationType === 'tan') return val >= 0 ? [1, 3] : [2, 4];
+  const relevantQuadrantsForHighlight = useMemo(() => {
+    const v = Number(constant);
+    if (isNaN(v)) return [];
+    if (equationType === 'sin') return v >= 0 ? [1, 2] : [3, 4];
+    if (equationType === 'cos') return v >= 0 ? [1, 4] : [2, 3];
+    if (equationType === 'tan') return v >= 0 ? [1, 3] : [2, 4];
     return [];
-  };
-  const relevantQuadrantsForHighlight = getRelevantQuadrantsForHighlight();
-  const numericSolutions = solveForQuiz(equationType, constant, 0, 360);
-  
-  const handleGraphMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
+  }, [equationType, constant]);
+
+  // The 361-point curve only depends on which function is selected, not on
+  // the constant or the mouse position — memoize so dragging the slider or
+  // moving the mouse over the graph doesn't rebuild it on every frame.
+  const graphPathD = useMemo(() => Array.from({ length: 361 }, (_, i) => {
+      const angle = i;
+      const x = 20 + (angle / 360) * 360;
+      let y;
+      if (equationType === 'sin') {
+          y = 150 - Math.sin((angle * Math.PI) / 180) * 100;
+      } else if (equationType === 'cos') {
+          y = 150 - Math.cos((angle * Math.PI) / 180) * 100;
+      } else {
+          const tanVal = Math.tan((angle * Math.PI) / 180);
+          y = 150 - Math.min(Math.max(tanVal, -2), 2) * 50;
+      }
+      return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
+  }).join(' '), [equationType]);
+
+  const handleGraphMouseMove = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
     if (!graphRef.current) return;
     const svg = graphRef.current;
     const pt = svg.createSVGPoint();
@@ -602,8 +621,8 @@ const SolvingTrigEquations = () => {
     } else {
         setHoverData(null);
     }
-  };
-  
+  }, [equationType]);
+
   const stepNames = ["Equation", "Ref Angle", "Quadrants", "Calculate", "Answer"];
 
   return (
@@ -679,7 +698,7 @@ const SolvingTrigEquations = () => {
                   <text x="385" y="155" fontSize="12" fill="#475569">θ</text>
                   <text x="5" y="45" fontSize="12" fill="#475569">y</text>
                   { [0, 90, 180, 270, 360].map(angle => { const x = 20 + (angle / 360) * 360; return (<g key={angle}><line x1={x} y1="145" x2={x} y2="155" stroke="#94a3b8" strokeWidth="1" /><text x={x} y="170" fontSize="10" fill="#64748b" textAnchor="middle">{angle}°</text></g>) })}
-                  <path d={Array.from({ length: 361 }, (_, i) => { const angle = i; const x = 20 + (angle / 360) * 360; let y; if (equationType === 'sin') { y = 150 - Math.sin((angle * Math.PI) / 180) * 100; } else if (equationType === 'cos') { y = 150 - Math.cos((angle * Math.PI) / 180) * 100; } else { const tanVal = Math.tan((angle * Math.PI) / 180); y = 150 - Math.min(Math.max(tanVal, -2), 2) * 50; } return `${i === 0 ? 'M' : 'L'} ${x} ${y}`; }).join(' ')} fill="none" stroke="#8b5cf6" strokeWidth="2.5" />
+                  <path d={graphPathD} fill="none" stroke="#8b5cf6" strokeWidth="2.5" />
                   <line x1="20" y1={150 - constant * (equationType === 'tan' ? 50 : 100)} x2="380" y2={150 - constant * (equationType === 'tan' ? 50 : 100)} stroke="#f59e0b" strokeWidth="2" strokeDasharray="6,3" />
                   <text x={375} y={150 - constant * (equationType === 'tan' ? 50 : 100) - 5} fontSize="11" fill="#c2410c" fontWeight="bold" textAnchor="end">y={constant.toFixed(2)}</text>
                   {solutions.map((sol, idx) => { const solAngle = parseFloat(sol); if(isNaN(solAngle) || solAngle < 0 || solAngle > 360) return null; const x = 20 + (solAngle / 360) * 360; const y = 150 - constant * (equationType === 'tan' ? 50 : 100); return ( <g key={idx}> <circle cx={x} cy={y} r={hoveredSolution === sol ? 10 : 6} fill="#10b981" stroke="white" strokeWidth="2" onMouseEnter={() => setHoveredSolution(sol)} onMouseLeave={() => setHoveredSolution(null)} className="transition-all duration-150"><title>Solution at {sol}°</title></circle> {hoveredSolution === sol && ( <g transform={`translate(${x > 300 ? x - 100 : x + 15}, ${y - 35})`} pointerEvents="none"> <rect x="0" y="0" width="90" height="25" fill="rgba(16, 185, 129, 0.9)" rx="5" /> <text x="10" y="17" fill="white" fontSize="11" fontWeight="bold">θ = {sol}°</text> </g> )} </g> ); })}
