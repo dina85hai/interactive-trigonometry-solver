@@ -31,6 +31,13 @@ type Point = {
   y: number;
 };
 
+type DiagramLabelling = {
+  answers: Record<string, string>;
+  onChange: (key: string, value: string) => void;
+  complete: boolean;
+  fields: Array<{ key: string; expected: string; className: string }>;
+};
+
 type ObliqueQuestion =
   | {
       key: string;
@@ -243,6 +250,7 @@ const TriangleDiagram = ({
   sideA,
   sideB,
   sideC,
+  labelling,
 }: {
   labelA: DiagramValue;
   labelB: DiagramValue;
@@ -250,7 +258,9 @@ const TriangleDiagram = ({
   sideA: DiagramValue;
   sideB: DiagramValue;
   sideC: DiagramValue;
+  labelling?: DiagramLabelling;
 }) => (
+  <div className="relative">
   <svg className="w-full rounded-2xl border border-slate-200 bg-white" viewBox="0 0 420 300" role="img" aria-label="Oblique triangle diagram">
     <rect width="420" height="300" fill="#ffffff" rx="18" />
     <polygon
@@ -266,7 +276,7 @@ const TriangleDiagram = ({
     <circle cx={trianglePoints.A.x} cy={trianglePoints.A.y} r="5.5" fill="#1d4ed8" />
     <circle cx={trianglePoints.B.x} cy={trianglePoints.B.y} r="5.5" fill="#1d4ed8" />
     <circle cx={trianglePoints.C.x} cy={trianglePoints.C.y} r="5.5" fill="#1d4ed8" />
-    <DiagramLabel x={28} y={252} width={104} value={labelA} />
+    {!labelling && <><DiagramLabel x={28} y={252} width={104} value={labelA} />
     <DiagramLabel x={114} y={22} width={116} value={labelB} />
     <DiagramLabel x={306} y={232} width={84} value={labelC} />
     <DiagramLabel x={236} y={126} width={110} value={sideA} />
@@ -278,8 +288,24 @@ const TriangleDiagram = ({
       <text x="30" y="20" fontSize="10" fontWeight="800" fill="#1d4ed8">Question</text>
       <rect x="10" y="31" width="14" height="8" rx="2" fill="#ecfdf5" stroke="#34d399" />
       <text x="30" y="39" fontSize="10" fontWeight="800" fill="#047857">Answer</text>
-    </g>
+    </g></>}
   </svg>
+  {labelling && (
+    <div className="absolute inset-0" aria-label="Label the triangle">
+      {labelling.fields.map((field) => (
+        <input
+          key={field.key}
+          aria-label={`Label ${field.key}`}
+          value={labelling.answers[field.key] ?? ''}
+          onChange={(event) => labelling.onChange(field.key, event.target.value)}
+          placeholder="?"
+          maxLength={1}
+          className={`absolute h-11 w-11 rounded-lg border-2 bg-white text-center text-lg font-extrabold outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-purple-500 sm:h-10 sm:w-10 ${field.className} ${labelling.complete ? 'border-emerald-500 text-emerald-700' : 'border-purple-500 text-slate-900'}`}
+        />
+      ))}
+    </div>
+  )}
+  </div>
 );
 
 const StepNavigator = ({
@@ -325,6 +351,113 @@ const StepNavigator = ({
   </div>
 );
 
+const GuidedSineExercise = ({
+  values,
+  result,
+}: {
+  values: SineValues;
+  result: { valid: boolean; angleC: number; sideB: number; sideC: number };
+}) => {
+  const [step, setStep] = useState(1);
+  const [labels, setLabels] = useState<Record<string, string>>({});
+  const [formula, setFormula] = useState('');
+  const [substitution, setSubstitution] = useState<Record<string, string>>({});
+  const [answer, setAnswer] = useState('');
+  const [feedback, setFeedback] = useState('');
+  const labelFields = [
+    { key: 'angleA', expected: 'a', className: 'left-[6%] top-[75%]' },
+    { key: 'angleB', expected: 'b', className: 'left-[34%] top-[6%]' },
+    { key: 'sideA', expected: 'a', className: 'right-[20%] top-[40%]' },
+  ];
+  const labelsCorrect = labelFields.every(({ key, expected }) => labels[key]?.trim().toLowerCase() === expected);
+  const substitutionCorrect = [
+    ['side', values.sideA], ['angleA', values.angleA], ['angleB', values.angleB],
+  ].every(([key, expected]) => Math.abs(Number(substitution[key]) - Number(expected)) < 0.01);
+  const answerCorrect = Math.abs(Number(answer) - result.sideB) < 0.06;
+  const next = (message: string) => { setFeedback(message); setStep((current) => Math.min(4, current + 1)); };
+  const inputClass = 'h-12 w-20 rounded-lg border-2 border-blue-500 bg-white px-2 text-center text-lg font-extrabold text-slate-900 outline-none focus:border-purple-600 sm:w-24';
+
+  return (
+    <section className="rounded-2xl border border-purple-200 bg-white p-4 shadow-lg sm:p-6">
+      <div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-full bg-purple-600 font-extrabold text-white">{step}</span><h3 className="text-xl font-extrabold text-slate-900">Guided Sine Rule Example</h3></div>
+      <div className="mt-4 grid grid-cols-4 gap-2 text-center text-xs font-extrabold sm:text-sm">
+        {['Label', 'Choose rule', 'Substitute', 'Calculate'].map((name, index) => <div key={name} className={`rounded-lg px-2 py-2 ${step >= index + 1 ? 'bg-purple-100 text-purple-800' : 'bg-slate-100 text-slate-500'}`}>{index + 1}. {name}</div>)}
+      </div>
+
+      {step === 1 && <div className="mt-5">
+        <p className="font-bold text-slate-800">Label the information given: ∠A = {values.angleA}°, ∠B = {values.angleB}°, and a = {values.sideA} cm.</p>
+        <div className="mx-auto mt-4 max-w-md"><TriangleDiagram labelA={{ text: '', kind: 'unknown' }} labelB={{ text: '', kind: 'unknown' }} labelC={{ text: '', kind: 'unknown' }} sideA={{ text: '', kind: 'unknown' }} sideB={{ text: '', kind: 'unknown' }} sideC={{ text: '', kind: 'unknown' }} labelling={{ answers: labels, onChange: (key, value) => { setLabels((current) => ({ ...current, [key]: value })); setFeedback(''); }, complete: labelsCorrect, fields: labelFields }} /></div>
+        <button type="button" onClick={() => labelsCorrect ? next('Correct. Now choose the formula.') : setFeedback('Label vertex A, vertex B, and side a before continuing.')} className="mt-4 w-full rounded-xl bg-purple-600 px-5 py-3 font-extrabold text-white hover:bg-purple-700">Check labels</button>
+      </div>}
+
+      {step === 2 && <div className="mt-5">
+        <p className="font-bold text-slate-800">Choose the formula related to this question.</p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          {['Sine Rule', 'Cosine Rule', 'tan θ = opposite / adjacent'].map((option) => <button key={option} type="button" onClick={() => { setFormula(option); setFeedback(''); }} className={`rounded-xl border-2 p-4 text-left font-extrabold ${formula === option ? 'border-purple-500 bg-purple-50 text-purple-800' : 'border-slate-200 bg-white text-slate-700'}`}>{option}</button>)}
+        </div>
+        <button type="button" onClick={() => formula === 'Sine Rule' ? next('Correct. Substitute the values into the Sine Rule.') : setFeedback('Try again. Two angles and one opposite side are known.')} className="mt-4 w-full rounded-xl bg-purple-600 px-5 py-3 font-extrabold text-white hover:bg-purple-700">Check formula</button>
+      </div>}
+
+      {step === 3 && <div className="mt-5">
+        <p className="font-bold text-slate-800">Include the given values in the formula.</p>
+        <div className="mt-5 flex flex-wrap items-center justify-center gap-2 text-xl font-bold text-slate-800">
+          <span>b =</span><span className="inline-flex flex-col items-center"><input aria-label="Given side a" className={inputClass} type="number" value={substitution.side ?? ''} onChange={(event) => setSubstitution((current) => ({ ...current, side: event.target.value }))} /><span className="mt-1 border-t-2 border-slate-700 px-2">sin(<input aria-label="Given angle A" className="w-12 bg-transparent text-center outline-none" type="number" value={substitution.angleA ?? ''} onChange={(event) => setSubstitution((current) => ({ ...current, angleA: event.target.value }))} />°)</span></span><span>× sin(</span><input aria-label="Given angle B" className={inputClass} type="number" value={substitution.angleB ?? ''} onChange={(event) => setSubstitution((current) => ({ ...current, angleB: event.target.value }))} /><span>°)</span>
+        </div>
+        <button type="button" onClick={() => substitutionCorrect ? next('Correct. Now calculate b and round to 2 decimal places.') : setFeedback('Use a = ' + values.sideA + ', ∠A = ' + values.angleA + '°, and ∠B = ' + values.angleB + '°.')} className="mt-5 w-full rounded-xl bg-purple-600 px-5 py-3 font-extrabold text-white hover:bg-purple-700">Check substitution</button>
+      </div>}
+
+      {step === 4 && <div className="mt-5 text-center">
+        <p className="font-bold text-slate-800">Calculate the missing side, b.</p>
+        <label className="mx-auto mt-5 flex max-w-xs items-center justify-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-xl font-extrabold text-slate-800">b = <input aria-label="Calculated side b" className={inputClass} type="number" step="any" value={answer} onChange={(event) => { setAnswer(event.target.value); setFeedback(''); }} /><span>cm</span></label>
+        <button type="button" onClick={() => setFeedback(answerCorrect ? `Excellent! b = ${rounded(result.sideB)} cm.` : 'Try again. Round your answer to 2 decimal places.')} className="mt-5 w-full rounded-xl bg-emerald-600 px-5 py-3 font-extrabold text-white hover:bg-emerald-700">Check calculation</button>
+      </div>}
+      {feedback && <p role="status" className={`mt-4 text-center font-bold ${feedback.startsWith('Correct') || feedback.startsWith('Excellent') ? 'text-emerald-700' : 'text-rose-700'}`}>{feedback}</p>}
+    </section>
+  );
+};
+
+const GuidedCosineOrAreaExercise = ({
+  kind,
+  values,
+  answer,
+}: {
+  kind: 'cosine' | 'area';
+  values: CosineValues;
+  answer: number;
+}) => {
+  const [step, setStep] = useState(1);
+  const [labels, setLabels] = useState<Record<string, string>>({});
+  const [formula, setFormula] = useState('');
+  const [substitution, setSubstitution] = useState<Record<string, string>>({});
+  const [calculation, setCalculation] = useState('');
+  const [feedback, setFeedback] = useState('');
+  const isArea = kind === 'area';
+  const fields = [
+    { key: 'angleA', expected: 'a', className: 'left-[6%] top-[75%]' },
+    { key: 'sideB', expected: 'b', className: 'left-[44%] bottom-[5%]' },
+    { key: 'sideC', expected: 'c', className: 'left-[7%] top-[43%]' },
+  ];
+  const labelsCorrect = fields.every(({ key, expected }) => labels[key]?.trim().toLowerCase() === expected);
+  const correctFormula = isArea ? 'Area Formula' : 'Cosine Rule';
+  const formulaText = isArea ? 'K = ½bc sin A' : 'a² = b² + c² − 2bc cos A';
+  const target = isArea ? 'K' : 'a';
+  const unit = isArea ? 'cm²' : 'cm';
+  const substitutionCorrect = [['sideB', values.sideB], ['sideC', values.sideC], ['angleA', values.angleA]].every(([key, expected]) => Math.abs(Number(substitution[key]) - Number(expected)) < 0.01);
+  const answerCorrect = Math.abs(Number(calculation) - answer) < 0.06;
+  const next = (message: string) => { setFeedback(message); setStep((current) => Math.min(4, current + 1)); };
+  const inputClass = 'h-12 w-20 rounded-lg border-2 border-blue-500 bg-white px-2 text-center text-lg font-extrabold text-slate-900 outline-none focus:border-purple-600 sm:w-24';
+
+  return <section className="rounded-2xl border border-purple-200 bg-white p-4 shadow-lg sm:p-6">
+    <div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-full bg-purple-600 font-extrabold text-white">{step}</span><h3 className="text-xl font-extrabold text-slate-900">Guided {isArea ? 'Area Formula' : 'Cosine Rule'} Example</h3></div>
+    <div className="mt-4 grid grid-cols-4 gap-2 text-center text-xs font-extrabold sm:text-sm">{['Label', 'Choose rule', 'Substitute', 'Calculate'].map((name, index) => <div key={name} className={`rounded-lg px-2 py-2 ${step >= index + 1 ? 'bg-purple-100 text-purple-800' : 'bg-slate-100 text-slate-500'}`}>{index + 1}. {name}</div>)}</div>
+    {step === 1 && <div className="mt-5"><p className="font-bold text-slate-800">Label the information given: ∠A = {values.angleA}°, b = {values.sideB} cm, and c = {values.sideC} cm.</p><div className="mx-auto mt-4 max-w-md"><TriangleDiagram labelA={{ text: '', kind: 'unknown' }} labelB={{ text: '', kind: 'unknown' }} labelC={{ text: '', kind: 'unknown' }} sideA={{ text: '', kind: 'unknown' }} sideB={{ text: '', kind: 'unknown' }} sideC={{ text: '', kind: 'unknown' }} labelling={{ answers: labels, onChange: (key, value) => { setLabels((current) => ({ ...current, [key]: value })); setFeedback(''); }, complete: labelsCorrect, fields }} /></div><button type="button" onClick={() => labelsCorrect ? next('Correct. Now choose the formula.') : setFeedback('Label vertex A and sides b and c before continuing.')} className="mt-4 w-full rounded-xl bg-purple-600 px-5 py-3 font-extrabold text-white">Check labels</button></div>}
+    {step === 2 && <div className="mt-5"><p className="font-bold text-slate-800">Choose the formula related to this question.</p><div className="mt-4 grid gap-3 sm:grid-cols-3">{[correctFormula, isArea ? 'Sine Rule' : 'Area Formula', 'tan θ = opposite / adjacent'].map((option) => <button key={option} type="button" onClick={() => { setFormula(option); setFeedback(''); }} className={`rounded-xl border-2 p-4 text-left font-extrabold ${formula === option ? 'border-purple-500 bg-purple-50 text-purple-800' : 'border-slate-200 bg-white text-slate-700'}`}>{option}</button>)}</div><button type="button" onClick={() => formula === correctFormula ? next('Correct. Substitute the values into the formula.') : setFeedback('Try again. Use the rule for two sides and their included angle.')} className="mt-4 w-full rounded-xl bg-purple-600 px-5 py-3 font-extrabold text-white">Check formula</button></div>}
+    {step === 3 && <div className="mt-5"><p className="font-bold text-slate-800">Include the given values in {formulaText}.</p><p className="mt-4 text-center font-serif text-xl font-bold text-purple-800">{formulaText}</p><div className="mt-5 flex flex-wrap items-center justify-center gap-3 text-lg font-bold text-slate-800"><label>b = <input aria-label="Given side b" className={inputClass} type="number" value={substitution.sideB ?? ''} onChange={(event) => setSubstitution((current) => ({ ...current, sideB: event.target.value }))} /></label><label>c = <input aria-label="Given side c" className={inputClass} type="number" value={substitution.sideC ?? ''} onChange={(event) => setSubstitution((current) => ({ ...current, sideC: event.target.value }))} /></label><label>∠A = <input aria-label="Given angle A" className={inputClass} type="number" value={substitution.angleA ?? ''} onChange={(event) => setSubstitution((current) => ({ ...current, angleA: event.target.value }))} />°</label></div><button type="button" onClick={() => substitutionCorrect ? next(`Correct. Now calculate ${target} and round to 2 decimal places.`) : setFeedback(`Use b = ${values.sideB}, c = ${values.sideC}, and ∠A = ${values.angleA}°.`)} className="mt-5 w-full rounded-xl bg-purple-600 px-5 py-3 font-extrabold text-white">Check substitution</button></div>}
+    {step === 4 && <div className="mt-5 text-center"><p className="font-bold text-slate-800">Calculate {target}.</p><label className="mx-auto mt-5 flex max-w-xs items-center justify-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-xl font-extrabold text-slate-800">{target} = <input aria-label={`Calculated ${target}`} className={inputClass} type="number" step="any" value={calculation} onChange={(event) => { setCalculation(event.target.value); setFeedback(''); }} /><span>{unit}</span></label><button type="button" onClick={() => setFeedback(answerCorrect ? `Excellent! ${target} = ${rounded(answer)} ${unit}.` : 'Try again. Round your answer to 2 decimal places.')} className="mt-5 w-full rounded-xl bg-emerald-600 px-5 py-3 font-extrabold text-white">Check calculation</button></div>}
+    {feedback && <p role="status" className={`mt-4 text-center font-bold ${feedback.startsWith('Correct') || feedback.startsWith('Excellent') ? 'text-emerald-700' : 'text-rose-700'}`}>{feedback}</p>}
+  </section>;
+};
+
 const ObliqueTriangleSolver = () => {
   const [mode, setMode] = useState<ObliqueMode>('sine');
   const [activeStep, setActiveStep] = useState(0);
@@ -332,6 +465,9 @@ const ObliqueTriangleSolver = () => {
   const [sineValues, setSineValues] = useState<SineValues>({ sideA: 8, angleA: 40, angleB: 70 });
   const [cosineValues, setCosineValues] = useState<CosineValues>({ sideB: 8, sideC: 10, angleA: 60 });
   const [areaValues, setAreaValues] = useState<AreaValues>({ sideB: 9, sideC: 12, angleA: 55 });
+  const [practiceAnswers, setPracticeAnswers] = useState<Record<string, string>>({});
+  const [practiceFeedback, setPracticeFeedback] = useState('');
+  const [labellingAnswers, setLabellingAnswers] = useState<Record<string, string>>({});
 
   const sineResult = useMemo(() => {
     const { sideA, angleA, angleB } = sineValues;
@@ -374,10 +510,10 @@ const ObliqueTriangleSolver = () => {
       const { sideA, angleA, angleB } = sineValues;
       return [
         {
-          title: 'Identify Given Values',
+          title: 'Label the Diagram',
           content: (
             <p>
-              Given ∠A = {angleA}°, ∠B = {angleB}°, and side a = {sideA} cm. Since two angles and one opposite side are known, use the Sine Rule.
+              Label only the given parts in the diagram: vertices A and B, and side a. Then notice that ∠A = {angleA}°, ∠B = {angleB}°, and side a = {sideA} cm, so use the Sine Rule.
             </p>
           ),
         },
@@ -406,10 +542,10 @@ const ObliqueTriangleSolver = () => {
       const { sideB, sideC, angleA } = cosineValues;
       return [
         {
-          title: 'Identify Given Values',
+          title: 'Label the Diagram',
           content: (
             <p>
-              Given b = {sideB} cm, c = {sideC} cm, and included angle ∠A = {angleA}°. This is a SAS case, so use the Cosine Rule.
+              Label only the given parts in the diagram: vertex A and sides b and c. Given b = {sideB} cm, c = {sideC} cm, and included angle ∠A = {angleA}°, this is a SAS case, so use the Cosine Rule.
             </p>
           ),
         },
@@ -435,10 +571,10 @@ const ObliqueTriangleSolver = () => {
     const { sideB, sideC, angleA } = areaValues;
     return [
       {
-          title: 'Identify Given Values',
+        title: 'Label the Diagram',
           content: (
             <p>
-              Given b = {sideB} cm, c = {sideC} cm, and included angle ∠A = {angleA}°. Use the area formula for two sides and included angle.
+              Label only the given parts in the diagram: vertex A and sides b and c. Given b = {sideB} cm, c = {sideC} cm, and included angle ∠A = {angleA}°, use the area formula.
             </p>
           ),
         },
@@ -488,16 +624,42 @@ const ObliqueTriangleSolver = () => {
     },
   }[mode] as Record<'labelA' | 'labelB' | 'labelC' | 'sideA' | 'sideB' | 'sideC', DiagramValue>;
 
+  const labellingFields = mode === 'sine'
+    ? [
+        { key: 'angleA', expected: 'a', className: 'left-[6%] top-[75%]' },
+        { key: 'angleB', expected: 'b', className: 'left-[34%] top-[6%]' },
+        { key: 'sideA', expected: 'a', className: 'right-[20%] top-[40%]' },
+      ]
+    : [
+        { key: 'angleA', expected: 'a', className: 'left-[6%] top-[75%]' },
+        { key: 'sideB', expected: 'b', className: 'left-[44%] bottom-[5%]' },
+        { key: 'sideC', expected: 'c', className: 'left-[7%] top-[43%]' },
+      ];
+
+  const labellingComplete = labellingFields.every(
+    ({ key, expected }) => labellingAnswers[key]?.trim().toLowerCase() === expected,
+  );
+
+  const updateLabelling = (key: string, value: string) => {
+    setLabellingAnswers((current) => ({ ...current, [key]: value }));
+  };
+
   const updateMode = (nextMode: ObliqueMode) => {
     setMode(nextMode);
     setActiveStep(0);
     setSelectedQuestionKey('');
+    setPracticeAnswers({});
+    setPracticeFeedback('');
+    setLabellingAnswers({});
   };
 
   const applyQuestion = (question: ObliqueQuestion) => {
     setMode(question.mode);
     setActiveStep(0);
     setSelectedQuestionKey(question.key);
+    setPracticeAnswers({});
+    setPracticeFeedback('');
+    setLabellingAnswers({});
 
     if (question.mode === 'sine') {
       setSineValues(question.values);
@@ -515,16 +677,25 @@ const ObliqueTriangleSolver = () => {
   const updateSineValues = (values: Partial<SineValues>) => {
     setSelectedQuestionKey('');
     setSineValues((current) => ({ ...current, ...values }));
+    setPracticeAnswers({});
+    setPracticeFeedback('');
+    setLabellingAnswers({});
   };
 
   const updateCosineValues = (values: Partial<CosineValues>) => {
     setSelectedQuestionKey('');
     setCosineValues((current) => ({ ...current, ...values }));
+    setPracticeAnswers({});
+    setPracticeFeedback('');
+    setLabellingAnswers({});
   };
 
   const updateAreaValues = (values: Partial<AreaValues>) => {
     setSelectedQuestionKey('');
     setAreaValues((current) => ({ ...current, ...values }));
+    setPracticeAnswers({});
+    setPracticeFeedback('');
+    setLabellingAnswers({});
   };
 
   const questionValues = {
@@ -540,6 +711,35 @@ const ObliqueTriangleSolver = () => {
     cosine: cosineResult.valid ? [`a = ${rounded(cosineResult.sideA)} cm`] : ['Check the input values'],
     area: areaResult.valid ? [`K = ${rounded(areaResult.area)} cm²`] : ['Check the input values'],
   }[mode];
+
+  const practiceFields = mode === 'sine'
+    ? [
+        { key: 'angleC', label: '∠C', unit: '°', answer: sineResult.angleC },
+        { key: 'sideB', label: 'b', unit: 'cm', answer: sineResult.sideB },
+        { key: 'sideC', label: 'c', unit: 'cm', answer: sineResult.sideC },
+      ]
+    : mode === 'cosine'
+      ? [{ key: 'sideA', label: 'a', unit: 'cm', answer: cosineResult.sideA }]
+      : [{ key: 'area', label: 'Area', unit: 'cm²', answer: areaResult.area }];
+
+  const practicePrompt = mode === 'sine'
+    ? `Given a = ${sineValues.sideA} cm, ∠A = ${sineValues.angleA}°, and ∠B = ${sineValues.angleB}°, find the missing values.`
+    : mode === 'cosine'
+      ? `Given b = ${cosineValues.sideB} cm, c = ${cosineValues.sideC} cm, and included ∠A = ${cosineValues.angleA}°, find side a.`
+      : `Given b = ${areaValues.sideB} cm, c = ${areaValues.sideC} cm, and included ∠A = ${areaValues.angleA}°, find the area.`;
+
+  const checkPractice = () => {
+    const valid = practiceFields.every((field) => {
+      const entered = Number(practiceAnswers[field.key]);
+      return Number.isFinite(entered) && Math.abs(entered - field.answer) < 0.06;
+    });
+    setPracticeFeedback(valid ? 'Excellent! Every value is correct.' : 'Not quite yet. Check your formula and round each answer to 2 decimal places.');
+  };
+
+  const clearPractice = () => {
+    setPracticeAnswers({});
+    setPracticeFeedback('');
+  };
 
   return (
     <section className="space-y-6">
@@ -624,24 +824,33 @@ const ObliqueTriangleSolver = () => {
 
         <div className="space-y-6">
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
-            <StepNavigator steps={steps} activeStep={activeStep} onStepSelect={setActiveStep} />
-            <div className="rounded-2xl border border-white bg-white/90 p-5 shadow-lg">
-              <TriangleDiagram {...diagramLabels} />
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {mode === 'sine' ? <GuidedSineExercise key={`${sineValues.sideA}-${sineValues.angleA}-${sineValues.angleB}`} values={sineValues} result={sineResult} /> : <GuidedCosineOrAreaExercise key={`${mode}-${mode === 'cosine' ? cosineValues.sideB : areaValues.sideB}-${mode === 'cosine' ? cosineValues.sideC : areaValues.sideC}-${mode === 'cosine' ? cosineValues.angleA : areaValues.angleA}`} kind={mode} values={mode === 'cosine' ? cosineValues : areaValues} answer={mode === 'cosine' ? cosineResult.sideA : areaResult.area} />}
+            {false && <div className="rounded-2xl border border-white bg-white/90 p-5 shadow-lg">
+              <TriangleDiagram
+                {...diagramLabels}
+                labelling={activeStep === 0 ? { answers: labellingAnswers, onChange: updateLabelling, complete: labellingComplete, fields: labellingFields } : undefined}
+              />
+              {activeStep === 0 && (
+                <p role="status" className={`mt-3 text-center text-sm font-bold ${labellingComplete ? 'text-emerald-700' : 'text-purple-700'}`}>
+                  {labellingComplete ? 'Correct — the given parts are labelled. Continue to Step 2.' : mode === 'sine' ? 'Type A and B at the given vertices, then a on the given side.' : 'Type A at the given vertex, then b and c on the given sides.'}
+                </p>
+              )}
+              <div className={`mt-4 grid gap-3 ${activeStep >= 3 ? 'sm:grid-cols-2' : ''}`}>
                 <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
                   <p className="text-xs font-extrabold uppercase tracking-wide text-blue-700">Question</p>
                   <ul className="mt-2 space-y-1 text-sm font-bold text-blue-900">
                     {questionValues.map((value) => <li key={value}>{value}</li>)}
                   </ul>
                 </div>
-                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+                {activeStep >= 3 && <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
                   <p className="text-xs font-extrabold uppercase tracking-wide text-emerald-700">Answer</p>
                   <ul className="mt-2 space-y-1 text-sm font-bold text-emerald-900">
                     {answerValues.map((value) => <li key={value}>{value}</li>)}
                   </ul>
-                </div>
+                </div>}
               </div>
             </div>
+            }
           </div>
 
           <div className="grid gap-4 md:grid-cols-3">
@@ -663,6 +872,41 @@ const ObliqueTriangleSolver = () => {
               <p className="mt-1 font-serif text-sm text-slate-600">K = <HalfFormula />ab sin C = <HalfFormula />ca sin B</p>
             </div>
           </div>
+
+          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-lg sm:p-7" aria-labelledby="try-it-heading">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="text-2xl" aria-hidden="true">🎯</span>
+              <h3 id="try-it-heading" className="text-2xl font-extrabold text-slate-900">Try It Yourself!</h3>
+            </div>
+            <div className="mt-5 rounded-2xl bg-slate-50 px-5 py-6 text-center text-lg font-bold leading-relaxed text-blue-600 sm:text-xl">
+              {practicePrompt}
+            </div>
+            <p className="mt-5 font-bold text-slate-800">Enter your answers in the boxes:</p>
+            <div className="mt-4 flex flex-wrap items-end justify-center gap-3 sm:gap-5">
+              {practiceFields.map((field, index) => (
+                <React.Fragment key={field.key}>
+                  {index > 0 && <span className="mb-4 text-xl font-bold text-blue-600" aria-hidden="true">+</span>}
+                  <label className="flex items-end rounded-xl border border-slate-200 bg-slate-50 p-3 shadow-sm focus-within:ring-2 focus-within:ring-blue-500">
+                    <span className="sr-only">{field.label} answer</span>
+                    <input
+                      type="number"
+                      step="any"
+                      value={practiceAnswers[field.key] ?? ''}
+                      onChange={(event) => { setPracticeAnswers((current) => ({ ...current, [field.key]: event.target.value })); setPracticeFeedback(''); }}
+                      placeholder="?"
+                      className="h-14 w-24 rounded-lg border-2 border-blue-500 bg-white px-2 text-center text-xl font-bold text-slate-900 outline-none placeholder:text-slate-400 focus:border-purple-600"
+                    />
+                    <span className="ml-2 pb-3 text-base font-extrabold text-blue-600">{field.label} {field.unit}</span>
+                  </label>
+                </React.Fragment>
+              ))}
+            </div>
+            <div className="mt-6 flex flex-wrap justify-center gap-3">
+              <button type="button" onClick={checkPractice} className="rounded-xl bg-blue-600 px-6 py-3 font-extrabold text-white transition hover:bg-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">Check answers</button>
+              <button type="button" onClick={clearPractice} className="rounded-xl border border-slate-300 bg-white px-6 py-3 font-extrabold text-slate-700 transition hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">Clear</button>
+            </div>
+            {practiceFeedback && <p role="status" className={`mt-4 text-center font-bold ${practiceFeedback.startsWith('Excellent') ? 'text-emerald-700' : 'text-rose-700'}`}>{practiceFeedback}</p>}
+          </section>
         </div>
       </div>
     </section>
