@@ -21,9 +21,31 @@ type StepState = {
   content: React.ReactNode;
 };
 
+type ExerciseStatus = 'unanswered' | 'correct' | 'incorrect';
+
 type DiagramValue = {
   text: string;
   kind: 'given' | 'answer' | 'unknown';
+};
+
+type PracticeLevel = 'easy' | 'medium' | 'hard';
+
+type HintLevel = 0 | 1 | 2 | 3;
+
+type DetailedQuestion = {
+  id: string;
+  title: string;
+  description: string;
+  context: string; // Real-world scenario
+  difficulty: PracticeLevel;
+  mode: ObliqueMode;
+  problemStatement: string; // Full problem text
+  givenValues: Record<string, string>; // e.g., { 'angleA': '40°', 'sideA': '8 cm' }
+  findWhat: string; // What to solve for
+  hints: string[];
+  solution: string; // Full worked solution
+  answer: number;
+  answerFormat: string; // e.g., 'cm', '°', 'cm²'
 };
 
 type Point = {
@@ -123,6 +145,191 @@ const questionBank: ObliqueQuestion[] = [
     source: 'Formula extension',
     mode: 'area',
     values: { sideB: 13, sideC: 8, angleA: 105 },
+  },
+];
+
+const detailedQuestionBank: DetailedQuestion[] = [
+  // EASY SINE RULE QUESTIONS
+  {
+    id: 'sine-easy-1',
+    title: 'Navigation at Sea - Finding Distance',
+    description: 'A ship navigation problem using the Sine Rule',
+    context: 'A coast guard station observes a ship using two observation points. They need to find the distance to the ship using angles and a known baseline.',
+    difficulty: 'easy',
+    mode: 'sine',
+    problemStatement: 'Two observation points A and B are 8 km apart on the coast. An observer at point A measures the angle to a ship at C as 40°. An observer at point B measures the angle at B as 70°. Find the distance from point A to the ship (side b).',
+    givenValues: { 'Side a (AB)': '8 km', 'Angle A': '40°', 'Angle B': '70°' },
+    findWhat: 'Distance b (from A to ship)',
+    hints: [
+      'This is an AAS (Angle-Angle-Side) case. The Sine Rule can find the unknown side.',
+      'First find angle C: 180° - 40° - 70° = 70°. Then use the Sine Rule: a/sin(A) = b/sin(B).',
+      'Step 1: Calculate ∠C = 180° - 40° - 70° = 70°. Step 2: Use Sine Rule: 8/sin(40°) = b/sin(70°). Step 3: b = (8 × sin(70°))/sin(40°) ≈ 12.2 km'
+    ],
+    solution: 'Given: ∠A = 40°, ∠B = 70°, side a = 8 km\n\nStep 1: Find ∠C\n∠C = 180° - 40° - 70° = 70°\n\nStep 2: Apply Sine Rule\na/sin(A) = b/sin(B)\n8/sin(40°) = b/sin(70°)\n\nStep 3: Solve for b\nb = (8 × sin(70°))/sin(40°)\nb = (8 × 0.9397)/0.6428\nb = 7.5176/0.6428\nb ≈ 11.68 km',
+    answer: 11.68,
+    answerFormat: 'km'
+  },
+  {
+    id: 'sine-easy-2',
+    title: 'Surveying Land - Finding Width of River',
+    description: 'A surveyor using angles to find the width of a river',
+    context: 'A land surveyor needs to find the width of a river without crossing it, using angle measurements from known points.',
+    difficulty: 'easy',
+    mode: 'sine',
+    problemStatement: 'A surveyor stands at point A on one bank of a river and places a pole at point B, 50 meters away along the bank. From point A, the angle to a tree on the opposite bank (point C) is 55°. From point B, the angle to the tree is 65°. Find the distance from A to the tree (side b).',
+    givenValues: { 'Side a (AB)': '50 m', 'Angle at A': '55°', 'Angle at B': '65°' },
+    findWhat: 'Distance b (from A to tree)',
+    hints: [
+      'This involves an AAS case. Find the third angle first, then use Sine Rule.',
+      'Angle C = 180° - 55° - 65° = 60°. Use Sine Rule: 50/sin(60°) = b/sin(65°).',
+      'Step-by-step: ∠C = 60°, then b = (50 × sin(65°))/sin(60°) ≈ 52.7 m'
+    ],
+    solution: 'Given: ∠A = 55°, ∠B = 65°, side a = 50 m\n\nStep 1: Find ∠C\n∠C = 180° - 55° - 65° = 60°\n\nStep 2: Apply Sine Rule\na/sin(A) = b/sin(B)\n50/sin(60°) = b/sin(65°)\n\nStep 3: Solve for b\nb = (50 × sin(65°))/sin(60°)\nb = (50 × 0.9063)/0.8660\nb = 45.315/0.8660\nb ≈ 52.3 m',
+    answer: 52.3,
+    answerFormat: 'm'
+  },
+
+  // MEDIUM SINE RULE QUESTIONS
+  {
+    id: 'sine-medium-1',
+    title: 'Aviation - Finding Distance Between Cities',
+    description: 'An aircraft navigation problem using the Sine Rule',
+    context: 'An aircraft needs to find the distance between two cities using known angles and a reference distance.',
+    difficulty: 'medium',
+    mode: 'sine',
+    problemStatement: 'An aircraft at point C is flying between two cities at points A and B that are 250 km apart. The aircraft measures the angle at C to be 52°. From city A, the angle CAB is 38°. Find the distance from city B to the aircraft (side b).',
+    givenValues: { 'Distance AB': '250 km', 'Angle at C': '52°', 'Angle at A': '38°' },
+    findWhat: 'Distance b (from B to aircraft)',
+    hints: [
+      'Find angle B first using angle sum property. Then use Sine Rule.',
+      'Angle B = 180° - 38° - 52° = 90°. This is a right triangle! Use Sine Rule: 250/sin(52°) = b/sin(38°).',
+      'b = (250 × sin(38°))/sin(52°) = (250 × 0.6157)/0.7880 ≈ 195.1 km'
+    ],
+    solution: 'Given: ∠A = 38°, ∠C = 52°, side a = 250 km\n\nStep 1: Find ∠B\n∠B = 180° - 38° - 52° = 90° (Right angle!)\n\nStep 2: Apply Sine Rule\na/sin(A) = b/sin(B)\n250/sin(52°) = b/sin(38°)\n\nWait, correcting formula:\n250/sin(52°) = b/sin(38°)\n\nStep 3: Solve for b\nb = (250 × sin(38°))/sin(52°)\nb = (250 × 0.6157)/0.7880\nb = 153.925/0.7880\nb ≈ 195.3 km',
+    answer: 195.3,
+    answerFormat: 'km'
+  },
+
+  // EASY COSINE RULE QUESTIONS
+  {
+    id: 'cosine-easy-1',
+    title: 'Building Triangular Garden - Finding Path Length',
+    description: 'A gardener designing a triangular garden plot',
+    context: 'A gardener has two garden beds of known length with a known angle between them, and needs to find the length of the path connecting their ends.',
+    difficulty: 'easy',
+    mode: 'cosine',
+    problemStatement: 'A gardener designs a triangular garden with two sides measuring 8 meters and 12 meters, with an included angle of 60°. Find the length of the path connecting the two ends (side a).',
+    givenValues: { 'Side b': '8 m', 'Side c': '12 m', 'Angle A (included)': '60°' },
+    findWhat: 'Side a (path length)',
+    hints: [
+      'This is an SAS (Side-Angle-Side) case, perfect for the Cosine Rule.',
+      'Use the Cosine Rule: a² = b² + c² - 2bc·cos(A) = 64 + 144 - 2(8)(12)cos(60°).',
+      'a² = 208 - 192(0.5) = 208 - 96 = 112, so a = √112 ≈ 10.6 m'
+    ],
+    solution: 'Given: b = 8 m, c = 12 m, ∠A = 60°\n\nApply Cosine Rule:\na² = b² + c² - 2bc·cos(A)\na² = 8² + 12² - 2(8)(12)·cos(60°)\na² = 64 + 144 - 192(0.5)\na² = 208 - 96\na² = 112\na = √112\na ≈ 10.58 m',
+    answer: 10.58,
+    answerFormat: 'm'
+  },
+  {
+    id: 'cosine-easy-2',
+    title: 'Bridge Construction - Finding Support Length',
+    description: 'Finding the length of a support beam in a triangular bridge structure',
+    context: 'An engineer needs to calculate the length of a diagonal support beam in a triangular framework.',
+    difficulty: 'easy',
+    mode: 'cosine',
+    problemStatement: 'In a triangular bridge support structure, two beams of length 7 meters and 9 meters meet at an angle of 50°. Find the length of the third beam that completes the triangle (side a).',
+    givenValues: { 'Beam 1 (b)': '7 m', 'Beam 2 (c)': '9 m', 'Included angle (A)': '50°' },
+    findWhat: 'Beam 3 (side a)',
+    hints: [
+      'Use the Cosine Rule for this SAS case: a² = 7² + 9² - 2(7)(9)cos(50°).',
+      'Calculate: a² = 49 + 81 - 126(0.6428) = 130 - 80.99 ≈ 49.',
+      'a = √49.01 ≈ 7.0 m'
+    ],
+    solution: 'Given: b = 7 m, c = 9 m, ∠A = 50°\n\nApply Cosine Rule:\na² = b² + c² - 2bc·cos(A)\na² = 7² + 9² - 2(7)(9)·cos(50°)\na² = 49 + 81 - 126(0.6428)\na² = 130 - 80.99\na² ≈ 49.01\na ≈ 7.00 m',
+    answer: 7.00,
+    answerFormat: 'm'
+  },
+
+  // MEDIUM COSINE RULE QUESTIONS
+  {
+    id: 'cosine-medium-1',
+    title: 'Surveying Mountain Triangle - Finding Distance',
+    description: 'A surveyor measuring distances in a mountainous region',
+    context: 'A surveying team needs to find a third distance in a triangular survey area.',
+    difficulty: 'medium',
+    mode: 'cosine',
+    problemStatement: 'A surveying team measures two distances on either side of a mountain ridge: 450 meters and 600 meters, with an angle of 85° between them. Find the direct distance across the ridge (side a).',
+    givenValues: { 'Side b': '450 m', 'Side c': '600 m', 'Angle A (at ridge)': '85°' },
+    findWhat: 'Direct distance a',
+    hints: [
+      'This is a challenging SAS case with a large angle. Use Cosine Rule carefully.',
+      'a² = 450² + 600² - 2(450)(600)cos(85°). Note: cos(85°) ≈ 0.0872.',
+      'a² = 202500 + 360000 - 540000(0.0872) ≈ 515688, so a ≈ 718.1 m'
+    ],
+    solution: 'Given: b = 450 m, c = 600 m, ∠A = 85°\n\nApply Cosine Rule:\na² = b² + c² - 2bc·cos(A)\na² = 450² + 600² - 2(450)(600)·cos(85°)\na² = 202500 + 360000 - 540000(0.0872)\na² = 562500 - 47088\na² = 515412\na = √515412\na ≈ 717.9 m',
+    answer: 717.9,
+    answerFormat: 'm'
+  },
+
+  // EASY AREA QUESTIONS
+  {
+    id: 'area-easy-1',
+    title: 'Painting a Triangular Wall - Finding Area',
+    description: 'Finding the area of a triangular wall section for painting',
+    context: 'A painter needs to know the area of a triangular wall to estimate paint needed.',
+    difficulty: 'easy',
+    mode: 'area',
+    problemStatement: 'A triangular wall section has two sides measuring 6 meters and 8 meters, with an included angle of 75°. Find the area of the wall that needs to be painted.',
+    givenValues: { 'Side b': '6 m', 'Side c': '8 m', 'Included angle A': '75°' },
+    findWhat: 'Area K',
+    hints: [
+      'Use the area formula: K = ½ × b × c × sin(A).',
+      'K = ½ × 6 × 8 × sin(75°) = 24 × sin(75°).',
+      'Since sin(75°) ≈ 0.9659, K ≈ 24 × 0.9659 ≈ 23.2 m²'
+    ],
+    solution: 'Given: b = 6 m, c = 8 m, ∠A = 75°\n\nApply Area Formula:\nK = ½ × b × c × sin(A)\nK = ½ × 6 × 8 × sin(75°)\nK = 24 × sin(75°)\nK = 24 × 0.9659\nK ≈ 23.18 m²',
+    answer: 23.18,
+    answerFormat: 'm²'
+  },
+  {
+    id: 'area-easy-2',
+    title: 'Tile Design - Finding Triangular Section Area',
+    description: 'Calculating area for a decorative triangular tile',
+    context: 'A tile designer needs to find the area of a triangular decorative tile.',
+    difficulty: 'easy',
+    mode: 'area',
+    problemStatement: 'A decorative tile is triangular with sides of 5 cm and 7 cm forming a 45° angle between them. Calculate the area of the tile.',
+    givenValues: { 'Side b': '5 cm', 'Side c': '7 cm', 'Included angle A': '45°' },
+    findWhat: 'Area K',
+    hints: [
+      'Use K = ½bc·sin(A) with the included angle.',
+      'K = ½ × 5 × 7 × sin(45°) = 17.5 × sin(45°).',
+      'sin(45°) = √2/2 ≈ 0.7071, so K ≈ 12.4 cm²'
+    ],
+    solution: 'Given: b = 5 cm, c = 7 cm, ∠A = 45°\n\nApply Area Formula:\nK = ½ × b × c × sin(A)\nK = ½ × 5 × 7 × sin(45°)\nK = 17.5 × (√2/2)\nK = 17.5 × 0.7071\nK ≈ 12.37 cm²',
+    answer: 12.37,
+    answerFormat: 'cm²'
+  },
+
+  // MEDIUM AREA QUESTIONS
+  {
+    id: 'area-medium-1',
+    title: 'Landscape Design - Finding Plot Area',
+    description: 'Calculating area of a triangular land plot for landscaping',
+    context: 'A landscape architect needs to find the area of a triangular plot.',
+    difficulty: 'medium',
+    mode: 'area',
+    problemStatement: 'A triangular plot of land has two sides of 85 meters and 120 meters, with an included angle of 68°. What is the total area that can be landscaped?',
+    givenValues: { 'Side b': '85 m', 'Side c': '120 m', 'Included angle A': '68°' },
+    findWhat: 'Area K',
+    hints: [
+      'Use the area formula: K = ½bc·sin(A).',
+      'K = ½ × 85 × 120 × sin(68°) = 5100 × sin(68°).',
+      'sin(68°) ≈ 0.9272, so K ≈ 4728.7 m²'
+    ],
+    solution: 'Given: b = 85 m, c = 120 m, ∠A = 68°\n\nApply Area Formula:\nK = ½ × b × c × sin(A)\nK = ½ × 85 × 120 × sin(68°)\nK = 5100 × sin(68°)\nK = 5100 × 0.9272\nK ≈ 4728.72 m²',
+    answer: 4728.72,
+    answerFormat: 'm²'
   },
 ];
 
@@ -461,7 +668,6 @@ const GuidedCosineOrAreaExercise = ({
 const ObliqueTriangleSolver = () => {
   const [mode, setMode] = useState<ObliqueMode>('sine');
   const [activeStep, setActiveStep] = useState(0);
-  const [selectedQuestionKey, setSelectedQuestionKey] = useState('old-sine-aas');
   const [sineValues, setSineValues] = useState<SineValues>({ sideA: 8, angleA: 40, angleB: 70 });
   const [cosineValues, setCosineValues] = useState<CosineValues>({ sideB: 8, sideC: 10, angleA: 60 });
   const [areaValues, setAreaValues] = useState<AreaValues>({ sideB: 9, sideC: 12, angleA: 55 });
@@ -489,10 +695,15 @@ const ObliqueTriangleSolver = () => {
       ? sideB ** 2 + sideC ** 2 - 2 * sideB * sideC * Math.cos(toRadians(angleA))
       : NaN;
     const sideA = sideASquared > 0 ? Math.sqrt(sideASquared) : NaN;
+    const angleB = valid && sideA > 0
+      ? (Math.acos(Math.max(-1, Math.min(1, (sideA ** 2 + sideC ** 2 - sideB ** 2) / (2 * sideA * sideC)))) * 180) / Math.PI
+      : NaN;
     return {
       valid: valid && Number.isFinite(sideA),
       sideASquared,
       sideA,
+      angleB,
+      angleC: valid && Number.isFinite(angleB) ? 180 - angleA - angleB : NaN,
     };
   }, [cosineValues]);
 
@@ -675,7 +886,6 @@ const ObliqueTriangleSolver = () => {
   };
 
   const updateSineValues = (values: Partial<SineValues>) => {
-    setSelectedQuestionKey('');
     setSineValues((current) => ({ ...current, ...values }));
     setPracticeAnswers({});
     setPracticeFeedback('');
@@ -683,7 +893,6 @@ const ObliqueTriangleSolver = () => {
   };
 
   const updateCosineValues = (values: Partial<CosineValues>) => {
-    setSelectedQuestionKey('');
     setCosineValues((current) => ({ ...current, ...values }));
     setPracticeAnswers({});
     setPracticeFeedback('');
@@ -691,7 +900,6 @@ const ObliqueTriangleSolver = () => {
   };
 
   const updateAreaValues = (values: Partial<AreaValues>) => {
-    setSelectedQuestionKey('');
     setAreaValues((current) => ({ ...current, ...values }));
     setPracticeAnswers({});
     setPracticeFeedback('');
@@ -708,8 +916,12 @@ const ObliqueTriangleSolver = () => {
     sine: sineResult.valid
       ? [`∠C = ${rounded(sineResult.angleC, 0)}°`, `b = ${rounded(sineResult.sideB)} cm`, `c = ${rounded(sineResult.sideC)} cm`]
       : ['Check the input values'],
-    cosine: cosineResult.valid ? [`a = ${rounded(cosineResult.sideA)} cm`] : ['Check the input values'],
-    area: areaResult.valid ? [`K = ${rounded(areaResult.area)} cm²`] : ['Check the input values'],
+    cosine: cosineResult.valid
+      ? [`A = ${cosineValues.angleA}°`, `a = ${rounded(cosineResult.sideA)} cm`, `B = ${rounded(cosineResult.angleB, 0)}°`, `b = ${cosineValues.sideB} cm`, `C = ${rounded(cosineResult.angleC, 0)}°`, `c = ${cosineValues.sideC} cm`]
+      : ['Check the input values'],
+    area: areaResult.valid && cosineResult.valid
+      ? [`A = ${areaValues.angleA}°`, `a = ${rounded(cosineResult.sideA)} cm`, `B = ${rounded(cosineResult.angleB, 0)}°`, `b = ${areaValues.sideB} cm`, `C = ${rounded(cosineResult.angleC, 0)}°`, `c = ${areaValues.sideC} cm`, `K = ${rounded(areaResult.area)} cm²`]
+      : ['Check the input values'],
   }[mode];
 
   const practiceFields = mode === 'sine'
@@ -773,30 +985,6 @@ const ObliqueTriangleSolver = () => {
             </div>
           </div>
 
-          <div>
-            <p className="text-sm font-bold text-slate-700">Question bank</p>
-            <div className="mt-2 max-h-[330px] space-y-2 overflow-y-auto pr-1">
-              {questionBank.map((question) => (
-                <button
-                  key={question.key}
-                  type="button"
-                  onClick={() => applyQuestion(question)}
-                  className={`w-full rounded-xl border p-3 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 ${
-                    selectedQuestionKey === question.key
-                      ? 'border-emerald-300 bg-emerald-50 text-emerald-950'
-                      : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-                  }`}
-                >
-                  <span className="flex items-center justify-between gap-2">
-                    <span className="text-sm font-extrabold">{question.title}</span>
-                    <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-extrabold uppercase tracking-wide text-slate-600">{question.mode}</span>
-                  </span>
-                  <span className="mt-1 block text-xs font-semibold text-slate-500">{question.source}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
           {mode === 'sine' && (
             <div className="space-y-4">
               <NumberInput id="sine-side-a" label="side" symbol="a" value={sineValues.sideA} suffix="cm" onChange={(sideA) => updateSineValues({ sideA })} />
@@ -851,6 +1039,211 @@ const ObliqueTriangleSolver = () => {
               </div>
             </div>
             }
+          </div>
+
+          <div className="rounded-2xl border border-white bg-white/90 p-5 shadow-lg sm:p-6">
+            <div className="text-center">
+              <h3 className="text-2xl font-extrabold text-slate-900">Interactive Exercise: Solve Step-by-Step</h3>
+              <p className="mt-2 text-slate-700">
+                Follow the plan, enter each answer, and check your work before moving on.
+              </p>
+              
+              {/* Navigation Controls (Section G) */}
+              {exerciseStep > 0 && (
+                <div className="mt-4 flex flex-wrap justify-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setExerciseStep(Math.max(1, exerciseStep - 1))}
+                    className="rounded-full border border-slate-300 bg-white px-4 py-2 font-bold text-slate-700 hover:bg-slate-100"
+                  >
+                    ⬅ Previous
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setExerciseStep(Math.min(5, exerciseStep + 1))}
+                    className="rounded-full border border-slate-300 bg-white px-4 py-2 font-bold text-slate-700 hover:bg-slate-100"
+                  >
+                    Next Step ➡
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setHintLevel(Math.min(3, hintLevel + 1))}
+                    className="rounded-full bg-yellow-500 px-4 py-2 font-bold text-white hover:bg-yellow-600"
+                  >
+                    💡 Hint
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setExerciseStep(0);
+                      setExerciseInputs({});
+                      setExerciseRule('');
+                      setExerciseStatus('unanswered');
+                      setExerciseFeedback('');
+                      setHintLevel(0);
+                      setHintAttempts(0);
+                    }}
+                    className="rounded-full border border-slate-300 bg-white px-4 py-2 font-bold text-slate-700 hover:bg-slate-100"
+                  >
+                    🔄 Reset
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode(mode === 'sine' ? 'cosine' : mode === 'cosine' ? 'area' : 'sine');
+                      setExerciseStep(0);
+                      setExerciseInputs({});
+                      setExerciseRule('');
+                      setExerciseStatus('unanswered');
+                      setExerciseFeedback('');
+                      setHintLevel(0);
+                      setHintAttempts(0);
+                    }}
+                    className="rounded-full bg-purple-600 px-4 py-2 font-bold text-white hover:bg-purple-700"
+                  >
+                    ✨ New
+                  </button>
+                </div>
+              )}
+
+              {exerciseStep === 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setExerciseStep(1);
+                    setHintAttempts(0);
+                    setHintLevel(0);
+                  }}
+                  className="mt-4 rounded-full bg-purple-600 px-6 py-2 font-bold text-white shadow-sm transition hover:bg-purple-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
+                >
+                  Start Exercise
+                </button>
+              )}
+            </div>
+
+            {exerciseStep > 0 && (
+              <div className="mt-5 space-y-4">
+                {/* Progress Indicator (Section H) */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm font-bold text-slate-700">Step {exerciseStep} of 5</p>
+                  </div>
+                  <ExerciseProgress currentStep={exerciseStep} onStepSelect={setExerciseStep} />
+                </div>
+
+                {exerciseStep >= 1 && (
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <h4 className="font-extrabold text-slate-900">✓ Step 1: Given Information</h4>
+                    <p className="mt-2 text-slate-700">Read the triangle using the standard labels. Blue values are given; green values are calculated.</p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {questionValues.map((value) => (
+                        <span key={value} className="rounded-lg bg-blue-100 px-3 py-2 text-sm font-bold text-blue-900">{value}</span>
+                      ))}
+                    </div>
+                    <div className="mt-3 grid grid-cols-3 gap-2 text-center text-sm font-bold">
+                      {['A', 'a', 'B', 'b', 'C', 'c'].map((label) => (
+                        <span key={label} className="rounded-lg border border-slate-200 bg-white px-2 py-2 text-slate-700">
+                          {label} <span className="text-slate-400">=</span> {label === exerciseTarget ? 'find' : questionValues.some((value) => value.startsWith(`${label} =`) || value.startsWith(`∠${label} =`)) ? 'given' : 'not needed'}
+                        </span>
+                      ))}
+                    </div>
+                    {exerciseStep === 1 && (
+                      <button type="button" onClick={() => setExerciseStep(2)} className="mt-4 rounded-full bg-purple-600 px-5 py-2 font-bold text-white hover:bg-purple-700">
+                        Continue to Plan →
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {exerciseStep >= 2 && (
+                  <div className="rounded-xl border border-slate-200 bg-white p-4">
+                    <h4 className="font-extrabold text-slate-900">✓ Step 2: Make a Plan</h4>
+                    <p className="mt-2 text-slate-700">Read the worked calculation, then choose the rule in Step 3. This exercise asks for one value only.</p>
+                    {calculationGuide}
+                    <button type="button" onClick={() => setExerciseStep(3)} className="mt-4 rounded-full bg-purple-600 px-5 py-2 font-bold text-white hover:bg-purple-700">
+                      Continue to Formula →
+                    </button>
+                  </div>
+                )}
+
+                {exerciseStep >= 3 && (
+                  <div className="rounded-xl border border-slate-200 bg-white p-4">
+                    <h4 className="font-extrabold text-slate-900">✓ Step 3: Choose the Formula</h4>
+                    <p className="mt-2 text-slate-700">Select the formula you will use for the calculation.</p>
+                    <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                      {modeOptions.map((option) => (
+                        <button
+                          key={option.key}
+                          type="button"
+                          onClick={() => {
+                            setExerciseRule(option.label);
+                            setExerciseStatus('unanswered');
+                            setExerciseFeedback('');
+                          }}
+                          className={`rounded-lg border px-3 py-3 text-sm font-bold ${exerciseRule === option.label ? 'border-purple-500 bg-purple-100 text-purple-900' : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'}`}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                    <button type="button" onClick={checkExerciseStep} className="mt-4 rounded-full bg-purple-600 px-5 py-2 font-bold text-white hover:bg-purple-700">
+                      Check
+                    </button>
+                    {exerciseStep === 3 && exerciseFeedback && <p role="status" className={`mt-2 font-semibold ${exerciseStatus === 'correct' ? 'text-emerald-700' : 'text-red-700'}`}>{exerciseFeedback}</p>}
+                  </div>
+                )}
+
+                {exerciseStep >= 4 && (
+                  <div className="rounded-xl border border-slate-200 bg-white p-4">
+                    <h4 className="font-extrabold text-slate-900">✓ Step 4: Calculate the Unknown</h4>
+                    <p className="mt-2 text-slate-700">Complete this one calculation using the substituted formula from Step 2.</p>
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                      {mode === 'sine' && (
+                        <>
+                          <label className="font-bold text-slate-800">b = <input type="number" value={exerciseInputs.sideB || ''} onChange={(event) => setExerciseInputs((current) => ({ ...current, sideB: event.target.value }))} className="ml-2 w-32 rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-purple-500" /> cm</label>
+                        </>
+                      )}
+                      {mode === 'cosine' && (
+                        <>
+                          <label className="font-bold text-slate-800">a = <input type="number" value={exerciseInputs.sideA || ''} onChange={(event) => setExerciseInputs((current) => ({ ...current, sideA: event.target.value }))} className="ml-2 w-32 rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-purple-500" /> cm</label>
+                        </>
+                      )}
+                      {mode === 'area' && (
+                        <>
+                          <label className="font-bold text-slate-800">K = <input type="number" value={exerciseInputs.area || ''} onChange={(event) => setExerciseInputs((current) => ({ ...current, area: event.target.value }))} className="ml-2 w-32 rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-purple-500" /> cm²</label>
+                        </>
+                      )}
+                    </div>
+                    <button type="button" onClick={() => { checkExerciseStep(); setHintAttempts(hintAttempts + 1); }} className="mt-4 rounded-full bg-purple-600 px-5 py-2 font-bold text-white hover:bg-purple-700">
+                      Check
+                    </button>
+                    {exerciseStep === 4 && exerciseFeedback && <p role="status" className={`mt-2 font-semibold ${exerciseStatus === 'correct' ? 'text-emerald-700' : 'text-red-700'}`}>{exerciseFeedback}</p>}
+                  </div>
+                )}
+
+                {exerciseStep >= 5 && (
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+                    <h4 className="font-extrabold text-emerald-950">✓ Step 5: Final Answer</h4>
+                    <p className="mt-2 text-emerald-900">The answer to this exercise is:</p>
+                    <p className="mt-2 text-lg font-extrabold text-emerald-950">{requestedAnswer}</p>
+                    <button type="button" onClick={checkExerciseStep} className="mt-4 rounded-full bg-emerald-600 px-5 py-2 font-bold text-white hover:bg-emerald-700">
+                      Finish Exercise
+                    </button>
+                    {exerciseStep === 5 && exerciseFeedback && <p role="status" className="mt-2 font-semibold text-emerald-800">{exerciseFeedback}</p>}
+                  </div>
+                )}
+
+                {/* Hint System Display */}
+                {hintLevel > 0 && exerciseStep > 2 && (
+                  <HintSystem
+                    mode={mode}
+                    hintLevel={hintLevel}
+                    onShowHint={setHintLevel}
+                    attempts={hintAttempts}
+                  />
+                )}
+              </div>
+            )}
           </div>
 
           <div className="grid gap-4 md:grid-cols-3">
