@@ -28,6 +28,10 @@ type DiagramValue = {
   kind: 'given' | 'answer' | 'unknown';
 };
 
+type PracticeLevel = 'easy' | 'medium' | 'hard';
+
+type HintLevel = 0 | 1 | 2 | 3;
+
 type Point = {
   x: number;
   y: number;
@@ -369,6 +373,315 @@ const ExerciseProgress = ({
   );
 };
 
+// Section 3: Formula Display Component
+const FormulaDisplay = ({
+  mode,
+}: {
+  mode: ObliqueMode;
+}) => {
+  const colorClasses = {
+    input: 'border-l-4 border-blue-500 bg-blue-50',
+    operation: 'border-l-4 border-orange-500 bg-orange-50',
+    output: 'border-l-4 border-green-500 bg-green-50',
+    condition: 'border-l-4 border-red-500 bg-red-50',
+  };
+
+  if (mode === 'sine') {
+    return (
+      <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h3 className="text-xl font-extrabold text-slate-900">Sine Rule Formula</h3>
+        <div className={`rounded-lg p-4 ${colorClasses.input}`}>
+          <p className="text-xs font-bold uppercase tracking-wide text-blue-700">Input Values</p>
+          <p className="mt-1 text-sm text-blue-900">Two angles (∠A, ∠B) and one opposite side (a)</p>
+        </div>
+        <div className={`rounded-lg p-4 ${colorClasses.operation}`}>
+          <p className="text-xs font-bold uppercase tracking-wide text-orange-700">Formula</p>
+          <p className="mt-2 font-serif text-lg text-orange-900"><SineRuleFormula /></p>
+        </div>
+        <div className={`rounded-lg p-4 ${colorClasses.output}`}>
+          <p className="text-xs font-bold uppercase tracking-wide text-green-700">Output</p>
+          <p className="mt-1 text-sm text-green-900">Find sides b and c, or angle C</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (mode === 'cosine') {
+    return (
+      <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h3 className="text-xl font-extrabold text-slate-900">Cosine Rule Formula</h3>
+        <div className={`rounded-lg p-4 ${colorClasses.input}`}>
+          <p className="text-xs font-bold uppercase tracking-wide text-blue-700">Input Values</p>
+          <p className="mt-1 text-sm text-blue-900">Two sides (b, c) and included angle (∠A)</p>
+        </div>
+        <div className={`rounded-lg p-4 ${colorClasses.operation}`}>
+          <p className="text-xs font-bold uppercase tracking-wide text-orange-700">Formula (Find side a)</p>
+          <p className="mt-2 font-serif text-lg text-orange-900">a² = b² + c² - 2bc cos A</p>
+          <p className="mt-3 text-xs font-bold uppercase tracking-wide text-orange-700">Find angles</p>
+          <p className="mt-1 font-serif text-sm text-orange-900">cos A = <Fraction numerator="b² + c² - a²" denominator="2bc" /></p>
+        </div>
+        <div className={`rounded-lg p-4 ${colorClasses.output}`}>
+          <p className="text-xs font-bold uppercase tracking-wide text-green-700">Output</p>
+          <p className="mt-1 text-sm text-green-900">Find side a or angles B and C</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <h3 className="text-xl font-extrabold text-slate-900">Area Formula</h3>
+      <div className={`rounded-lg p-4 ${colorClasses.input}`}>
+        <p className="text-xs font-bold uppercase tracking-wide text-blue-700">Input Values</p>
+        <p className="mt-1 text-sm text-blue-900">Two sides (b, c) and included angle (∠A)</p>
+      </div>
+      <div className={`rounded-lg p-4 ${colorClasses.operation}`}>
+        <p className="text-xs font-bold uppercase tracking-wide text-orange-700">Formula</p>
+        <p className="mt-2 font-serif text-lg text-orange-900">K = <HalfFormula />bc sin A</p>
+        <p className="mt-3 font-serif text-sm text-orange-900">K = <HalfFormula />ab sin C = <HalfFormula />ca sin B</p>
+      </div>
+      <div className={`rounded-lg p-4 ${colorClasses.output}`}>
+        <p className="text-xs font-bold uppercase tracking-wide text-green-700">Output</p>
+        <p className="mt-1 text-sm text-green-900">Calculate triangle area in square units</p>
+      </div>
+    </div>
+  );
+};
+
+// Section 4: Hint System Component
+const HintSystem = ({
+  mode,
+  hintLevel,
+  onShowHint,
+  attempts,
+}: {
+  mode: ObliqueMode;
+  hintLevel: HintLevel;
+  onShowHint: (level: HintLevel) => void;
+  attempts: number;
+}) => {
+  const getHints = (m: ObliqueMode) => {
+    if (m === 'sine') {
+      return {
+        1: 'Think about which rule applies when you know two angles and one side.',
+        2: 'The Sine Rule states: a/sin(A) = b/sin(B) = c/sin(C). Can you identify these values?',
+        3: 'Step 1: Find angle C using 180° - A - B. Step 2: Use Sine Rule with the ratio a/sin(A) to find b and c.',
+      };
+    }
+    if (m === 'cosine') {
+      return {
+        1: 'Think about which rule applies when you know two sides and the included angle.',
+        2: 'The Cosine Rule states: a² = b² + c² - 2bc cos(A). What is the relationship between these variables?',
+        3: 'Step 1: Substitute your values into a² = b² + c² - 2bc cos(A). Step 2: Calculate step by step. Step 3: Take the square root to find a.',
+      };
+    }
+    return {
+      1: 'Area of a triangle uses two sides and the included angle.',
+      2: 'The Area Formula is K = ½bc sin(A). How can you substitute your values?',
+      3: 'Step 1: Multiply ½ × b × c × sin(A). Step 2: Calculate sin(A) using your angle. Step 3: Multiply all values together.',
+    };
+  };
+
+  const hints = getHints(mode);
+  const showAnswer = attempts >= 3;
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-extrabold text-slate-900">💡 Hint System</h3>
+        <span className="text-sm font-bold text-slate-600">Attempts: {attempts}/3</span>
+      </div>
+      <div className="mt-4 space-y-3">
+        {[1, 2, 3].map((level) => (
+          <button
+            key={level}
+            type="button"
+            onClick={() => onShowHint(level as HintLevel)}
+            disabled={hintLevel < level}
+            className={`w-full rounded-lg border px-4 py-3 text-left text-sm font-bold transition ${
+              hintLevel >= level
+                ? 'border-purple-300 bg-purple-100 text-purple-900'
+                : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100'
+            } disabled:cursor-not-allowed`}
+          >
+            <span className="text-xs uppercase tracking-wide">Level {level} Hint:</span>
+            <p className="mt-1">{hints[level as keyof typeof hints]}</p>
+          </button>
+        ))}
+        {showAnswer && (
+          <div className="rounded-lg border-l-4 border-red-500 bg-red-50 p-4">
+            <p className="text-xs font-bold uppercase tracking-wide text-red-700">Show Answer</p>
+            <p className="mt-1 text-sm text-red-900">After 3 attempts, check the Step 2 calculation to see the complete solution.</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Section 5: Worked Examples Component
+const WorkedExamples = ({
+  mode,
+}: {
+  mode: ObliqueMode;
+}) => {
+  const examples: Record<ObliqueMode, Array<{ title: string; visual: string; symbolic: string }>> = {
+    sine: [
+      {
+        title: 'Example 1: AAS Case',
+        visual: '∠A = 40°, ∠B = 70°, a = 8 cm',
+        symbolic: '∠C = 180° - 40° - 70° = 70°\nb = (8 × sin 70°) / sin 40° ≈ 12.2 cm\nc = (8 × sin 70°) / sin 40° ≈ 12.2 cm',
+      },
+      {
+        title: 'Example 2: Different Angles',
+        visual: '∠A = 35°, ∠B = 80°, a = 10 cm',
+        symbolic: '∠C = 180° - 35° - 80° = 65°\nb = (10 × sin 80°) / sin 35° ≈ 17.3 cm\nc = (10 × sin 65°) / sin 35° ≈ 15.8 cm',
+      },
+    ],
+    cosine: [
+      {
+        title: 'Example 1: SAS Case',
+        visual: 'b = 7 cm, c = 9 cm, ∠A = 50°',
+        symbolic: 'a² = 7² + 9² - 2(7)(9)cos(50°)\na² = 49 + 81 - 126(0.643)\na² ≈ 50.0\na ≈ 7.07 cm',
+      },
+      {
+        title: 'Example 2: Larger Angle',
+        visual: 'b = 8 cm, c = 10 cm, ∠A = 60°',
+        symbolic: 'a² = 8² + 10² - 2(8)(10)cos(60°)\na² = 64 + 100 - 160(0.5)\na² = 84\na ≈ 9.17 cm',
+      },
+    ],
+    area: [
+      {
+        title: 'Example 1: Basic Area',
+        visual: 'b = 9 cm, c = 12 cm, ∠A = 55°',
+        symbolic: 'K = ½ × 9 × 12 × sin(55°)\nK = ½ × 9 × 12 × 0.819\nK ≈ 44.2 cm²',
+      },
+      {
+        title: 'Example 2: Right Angle',
+        visual: 'b = 6 cm, c = 8 cm, ∠A = 90°',
+        symbolic: 'K = ½ × 6 × 8 × sin(90°)\nK = ½ × 6 × 8 × 1\nK = 24 cm²',
+      },
+    ],
+  };
+
+  const modeExamples = examples[mode];
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <h3 className="text-xl font-extrabold text-slate-900">📚 Worked Examples</h3>
+      <div className="mt-4 grid gap-4 md:grid-cols-2">
+        {modeExamples.map((example, idx) => (
+          <div key={idx} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <h4 className="font-bold text-slate-900">{example.title}</h4>
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <div className="rounded-lg border-l-4 border-blue-500 bg-blue-50 p-3">
+                <p className="text-xs font-bold uppercase tracking-wide text-blue-700">Visual</p>
+                <p className="mt-1 text-sm font-mono text-blue-900">{example.visual}</p>
+              </div>
+              <div className="rounded-lg border-l-4 border-green-500 bg-green-50 p-3">
+                <p className="text-xs font-bold uppercase tracking-wide text-green-700">Solution</p>
+                <p className="mt-1 text-sm font-mono text-green-900 whitespace-pre-wrap">{example.symbolic}</p>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// Section 6: Practice Area Component
+const PracticeArea = ({
+  mode,
+  level,
+  onLevelChange,
+  onGenerateProblem,
+  scoreCount,
+  totalCount,
+}: {
+  mode: ObliqueMode;
+  level: PracticeLevel;
+  onLevelChange: (level: PracticeLevel) => void;
+  onGenerateProblem: () => void;
+  scoreCount: number;
+  totalCount: number;
+}) => {
+  const generateRandomProblem = () => {
+    const ranges = {
+      easy: { angles: [30, 70], sides: [5, 15] },
+      medium: { angles: [20, 85], sides: [8, 20] },
+      hard: { angles: [10, 170], sides: [3, 25] },
+    };
+
+    const range = ranges[level];
+    const randomAngle = Math.floor(Math.random() * (range.angles[1] - range.angles[0])) + range.angles[0];
+    const randomSide = Math.floor(Math.random() * (range.sides[1] - range.sides[0])) + range.sides[0];
+
+    return { angle: randomAngle, side: randomSide };
+  };
+
+  const problem = generateRandomProblem();
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="flex items-center justify-between">
+        <h3 className="text-xl font-extrabold text-slate-900">🎯 Practice Area</h3>
+        <span className="text-lg font-bold text-purple-600">{scoreCount}/{totalCount} Correct</span>
+      </div>
+
+      <div className="mt-4 flex gap-2 md:flex-row flex-col">
+        {(['easy', 'medium', 'hard'] as const).map((lvl) => (
+          <button
+            key={lvl}
+            type="button"
+            onClick={() => onLevelChange(lvl)}
+            className={`flex-1 rounded-lg border px-4 py-3 font-bold transition ${
+              level === lvl
+                ? 'border-purple-500 bg-purple-100 text-purple-900'
+                : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
+            }`}
+          >
+            <span className="block text-xs uppercase tracking-wide">
+              {lvl === 'easy' ? 'Asas (Easy)' : lvl === 'medium' ? 'Sederhana (Medium)' : 'Mencabar (Hard)'}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
+        <p className="text-xs font-bold uppercase tracking-wide text-amber-700">Random Problem ({level})</p>
+        <p className="mt-2 font-serif text-sm text-amber-900">
+          {mode === 'sine' && `∠A = ${problem.angle}°, ∠B = ${problem.angle + 15}°, a = ${problem.side} cm. Find b.`}
+          {mode === 'cosine' && `b = ${problem.side} cm, c = ${problem.side + 5} cm, ∠A = ${problem.angle}°. Find a.`}
+          {mode === 'area' && `b = ${problem.side} cm, c = ${problem.side + 3} cm, ∠A = ${problem.angle}°. Find K.`}
+        </p>
+      </div>
+
+      <div className="mt-4 flex gap-2">
+        <button
+          type="button"
+          onClick={onGenerateProblem}
+          className="flex-1 rounded-lg bg-purple-600 px-4 py-2 font-bold text-white hover:bg-purple-700"
+        >
+          Generate New Problem
+        </button>
+        <button
+          type="button"
+          className="flex-1 rounded-lg bg-slate-200 px-4 py-2 font-bold text-slate-700 hover:bg-slate-300"
+        >
+          Check Answer
+        </button>
+      </div>
+      <button
+        type="button"
+        className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-4 py-2 font-bold text-slate-700 hover:bg-slate-50"
+      >
+        Show Solution
+      </button>
+    </div>
+  );
+};
+
 const ObliqueTriangleSolver = () => {
   const [mode, setMode] = useState<ObliqueMode>('sine');
   const [activeStep, setActiveStep] = useState(0);
@@ -380,6 +693,12 @@ const ObliqueTriangleSolver = () => {
   const [exerciseRule, setExerciseRule] = useState('');
   const [exerciseStatus, setExerciseStatus] = useState<ExerciseStatus>('unanswered');
   const [exerciseFeedback, setExerciseFeedback] = useState('');
+  const [hintLevel, setHintLevel] = useState<HintLevel>(0);
+  const [hintAttempts, setHintAttempts] = useState(0);
+  const [practiceLevel, setPracticeLevel] = useState<PracticeLevel>('easy');
+  const [practiceScore, setPracticeScore] = useState(0);
+  const [practiceTotalAttempts, setPracticeTotalAttempts] = useState(0);
+  const [activeTab, setActiveTab] = useState<'solver' | 'practice'>('solver');
 
   const sineResult = useMemo(() => {
     const { sideA, angleA, angleB } = sineValues;
@@ -748,10 +1067,73 @@ const ObliqueTriangleSolver = () => {
               <p className="mt-2 text-slate-700">
                 Follow the plan, enter each answer, and check your work before moving on.
               </p>
+              
+              {/* Navigation Controls (Section G) */}
+              {exerciseStep > 0 && (
+                <div className="mt-4 flex flex-wrap justify-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setExerciseStep(Math.max(1, exerciseStep - 1))}
+                    className="rounded-full border border-slate-300 bg-white px-4 py-2 font-bold text-slate-700 hover:bg-slate-100"
+                  >
+                    ⬅ Previous
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setExerciseStep(Math.min(5, exerciseStep + 1))}
+                    className="rounded-full border border-slate-300 bg-white px-4 py-2 font-bold text-slate-700 hover:bg-slate-100"
+                  >
+                    Next Step ➡
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setHintLevel(Math.min(3, hintLevel + 1))}
+                    className="rounded-full bg-yellow-500 px-4 py-2 font-bold text-white hover:bg-yellow-600"
+                  >
+                    💡 Hint
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setExerciseStep(0);
+                      setExerciseInputs({});
+                      setExerciseRule('');
+                      setExerciseStatus('unanswered');
+                      setExerciseFeedback('');
+                      setHintLevel(0);
+                      setHintAttempts(0);
+                    }}
+                    className="rounded-full border border-slate-300 bg-white px-4 py-2 font-bold text-slate-700 hover:bg-slate-100"
+                  >
+                    🔄 Reset
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode(mode === 'sine' ? 'cosine' : mode === 'cosine' ? 'area' : 'sine');
+                      setExerciseStep(0);
+                      setExerciseInputs({});
+                      setExerciseRule('');
+                      setExerciseStatus('unanswered');
+                      setExerciseFeedback('');
+                      setHintLevel(0);
+                      setHintAttempts(0);
+                    }}
+                    className="rounded-full bg-purple-600 px-4 py-2 font-bold text-white hover:bg-purple-700"
+                  >
+                    ✨ New
+                  </button>
+                </div>
+              )}
+
               {exerciseStep === 0 && (
                 <button
                   type="button"
-                  onClick={startExercise}
+                  onClick={() => {
+                    setExerciseStep(1);
+                    setHintAttempts(0);
+                    setHintLevel(0);
+                  }}
                   className="mt-4 rounded-full bg-purple-600 px-6 py-2 font-bold text-white shadow-sm transition hover:bg-purple-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
                 >
                   Start Exercise
@@ -761,11 +1143,17 @@ const ObliqueTriangleSolver = () => {
 
             {exerciseStep > 0 && (
               <div className="mt-5 space-y-4">
-                <ExerciseProgress currentStep={exerciseStep} onStepSelect={setExerciseStep} />
+                {/* Progress Indicator (Section H) */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm font-bold text-slate-700">Step {exerciseStep} of 5</p>
+                  </div>
+                  <ExerciseProgress currentStep={exerciseStep} onStepSelect={setExerciseStep} />
+                </div>
 
                 {exerciseStep >= 1 && (
                   <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                    <h4 className="font-extrabold text-slate-900">Step 1: Given Information</h4>
+                    <h4 className="font-extrabold text-slate-900">✓ Step 1: Given Information</h4>
                     <p className="mt-2 text-slate-700">Read the triangle using the standard labels. Blue values are given; green values are calculated.</p>
                     <div className="mt-3 flex flex-wrap gap-2">
                       {questionValues.map((value) => (
@@ -781,7 +1169,7 @@ const ObliqueTriangleSolver = () => {
                     </div>
                     {exerciseStep === 1 && (
                       <button type="button" onClick={() => setExerciseStep(2)} className="mt-4 rounded-full bg-purple-600 px-5 py-2 font-bold text-white hover:bg-purple-700">
-                        Continue to Plan
+                        Continue to Plan →
                       </button>
                     )}
                   </div>
@@ -789,18 +1177,18 @@ const ObliqueTriangleSolver = () => {
 
                 {exerciseStep >= 2 && (
                   <div className="rounded-xl border border-slate-200 bg-white p-4">
-                    <h4 className="font-extrabold text-slate-900">Step 2: Make a Plan</h4>
+                    <h4 className="font-extrabold text-slate-900">✓ Step 2: Make a Plan</h4>
                     <p className="mt-2 text-slate-700">Read the worked calculation, then choose the rule in Step 3. This exercise asks for one value only.</p>
                     {calculationGuide}
                     <button type="button" onClick={() => setExerciseStep(3)} className="mt-4 rounded-full bg-purple-600 px-5 py-2 font-bold text-white hover:bg-purple-700">
-                      Continue to Formula
+                      Continue to Formula →
                     </button>
                   </div>
                 )}
 
                 {exerciseStep >= 3 && (
                   <div className="rounded-xl border border-slate-200 bg-white p-4">
-                    <h4 className="font-extrabold text-slate-900">Step 3: Choose the Formula</h4>
+                    <h4 className="font-extrabold text-slate-900">✓ Step 3: Choose the Formula</h4>
                     <p className="mt-2 text-slate-700">Select the formula you will use for the calculation.</p>
                     <div className="mt-3 grid gap-2 sm:grid-cols-3">
                       {modeOptions.map((option) => (
@@ -827,7 +1215,7 @@ const ObliqueTriangleSolver = () => {
 
                 {exerciseStep >= 4 && (
                   <div className="rounded-xl border border-slate-200 bg-white p-4">
-                    <h4 className="font-extrabold text-slate-900">Step 4: Calculate the Unknown</h4>
+                    <h4 className="font-extrabold text-slate-900">✓ Step 4: Calculate the Unknown</h4>
                     <p className="mt-2 text-slate-700">Complete this one calculation using the substituted formula from Step 2.</p>
                     <div className="mt-3 grid gap-3 sm:grid-cols-2">
                       {mode === 'sine' && (
@@ -846,7 +1234,7 @@ const ObliqueTriangleSolver = () => {
                         </>
                       )}
                     </div>
-                    <button type="button" onClick={checkExerciseStep} className="mt-4 rounded-full bg-purple-600 px-5 py-2 font-bold text-white hover:bg-purple-700">
+                    <button type="button" onClick={() => { checkExerciseStep(); setHintAttempts(hintAttempts + 1); }} className="mt-4 rounded-full bg-purple-600 px-5 py-2 font-bold text-white hover:bg-purple-700">
                       Check
                     </button>
                     {exerciseStep === 4 && exerciseFeedback && <p role="status" className={`mt-2 font-semibold ${exerciseStatus === 'correct' ? 'text-emerald-700' : 'text-red-700'}`}>{exerciseFeedback}</p>}
@@ -855,7 +1243,7 @@ const ObliqueTriangleSolver = () => {
 
                 {exerciseStep >= 5 && (
                   <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-                    <h4 className="font-extrabold text-emerald-950">Step 5: Final Answer</h4>
+                    <h4 className="font-extrabold text-emerald-950">✓ Step 5: Final Answer</h4>
                     <p className="mt-2 text-emerald-900">The answer to this exercise is:</p>
                     <p className="mt-2 text-lg font-extrabold text-emerald-950">{requestedAnswer}</p>
                     <button type="button" onClick={checkExerciseStep} className="mt-4 rounded-full bg-emerald-600 px-5 py-2 font-bold text-white hover:bg-emerald-700">
@@ -863,6 +1251,16 @@ const ObliqueTriangleSolver = () => {
                     </button>
                     {exerciseStep === 5 && exerciseFeedback && <p role="status" className="mt-2 font-semibold text-emerald-800">{exerciseFeedback}</p>}
                   </div>
+                )}
+
+                {/* Hint System Display */}
+                {hintLevel > 0 && exerciseStep > 2 && (
+                  <HintSystem
+                    mode={mode}
+                    hintLevel={hintLevel}
+                    onShowHint={setHintLevel}
+                    attempts={hintAttempts}
+                  />
                 )}
               </div>
             )}
@@ -887,6 +1285,22 @@ const ObliqueTriangleSolver = () => {
               <p className="mt-1 font-serif text-sm text-slate-600">K = <HalfFormula />ab sin C = <HalfFormula />ca sin B</p>
             </div>
           </div>
+
+          {/* Section 3: Formula Display with Color Coding */}
+          <FormulaDisplay mode={mode} />
+
+          {/* Section 5: Worked Examples */}
+          <WorkedExamples mode={mode} />
+
+          {/* Section 6: Practice Area */}
+          <PracticeArea
+            mode={mode}
+            level={practiceLevel}
+            onLevelChange={setPracticeLevel}
+            onGenerateProblem={() => setPracticeTotalAttempts(practiceTotalAttempts + 1)}
+            scoreCount={practiceScore}
+            totalCount={practiceTotalAttempts}
+          />
         </div>
       </div>
     </section>
