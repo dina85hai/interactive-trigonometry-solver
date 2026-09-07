@@ -21,6 +21,8 @@ type StepState = {
   content: React.ReactNode;
 };
 
+type ExerciseStatus = 'unanswered' | 'correct' | 'incorrect';
+
 type DiagramValue = {
   text: string;
   kind: 'given' | 'answer' | 'unknown';
@@ -325,13 +327,59 @@ const StepNavigator = ({
   </div>
 );
 
+const ExerciseProgress = ({
+  currentStep,
+  onStepSelect,
+}: {
+  currentStep: number;
+  onStepSelect: (step: number) => void;
+}) => {
+  const stepNames = ['Given', 'Plan', 'Formula', 'Calculate', 'Answer'];
+
+  return (
+    <div className="flex items-start justify-center" aria-label={`Step ${currentStep} of ${stepNames.length}`}>
+      {stepNames.map((name, index) => {
+        const step = index + 1;
+        const completed = step < currentStep;
+        const active = step === currentStep;
+
+        return (
+          <React.Fragment key={name}>
+            <button
+              type="button"
+              onClick={() => onStepSelect(step)}
+              className="flex w-16 flex-col items-center rounded-lg p-1 text-center transition hover:bg-white/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 sm:w-20"
+              aria-current={active ? 'step' : undefined}
+              aria-label={`Open step ${step}: ${name}`}
+            >
+              <span className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ${
+                completed ? 'bg-emerald-500 text-white' : active ? 'bg-purple-600 text-white ring-2 ring-purple-300' : 'bg-slate-300 text-slate-600'
+              }`}>
+                {completed ? '✓' : step}
+              </span>
+              <span className={`mt-1 text-[11px] leading-tight ${active ? 'font-bold text-slate-800' : 'text-slate-500'}`}>{name}</span>
+            </button>
+            {step < stepNames.length && (
+              <span className={`mt-4 h-1 flex-1 rounded ${completed ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+            )}
+          </React.Fragment>
+        );
+      })}
+    </div>
+  );
+};
+
 const ObliqueTriangleSolver = () => {
   const [mode, setMode] = useState<ObliqueMode>('sine');
   const [activeStep, setActiveStep] = useState(0);
-  const [selectedQuestionKey, setSelectedQuestionKey] = useState('old-sine-aas');
   const [sineValues, setSineValues] = useState<SineValues>({ sideA: 8, angleA: 40, angleB: 70 });
   const [cosineValues, setCosineValues] = useState<CosineValues>({ sideB: 8, sideC: 10, angleA: 60 });
   const [areaValues, setAreaValues] = useState<AreaValues>({ sideB: 9, sideC: 12, angleA: 55 });
+  const [exerciseStep, setExerciseStep] = useState(0);
+  const [exerciseInputs, setExerciseInputs] = useState<Record<string, string>>({});
+  const [exerciseRule, setExerciseRule] = useState('');
+  const [exerciseStatus, setExerciseStatus] = useState<ExerciseStatus>('unanswered');
+  const [exerciseFeedback, setExerciseFeedback] = useState('');
 
   const sineResult = useMemo(() => {
     const { sideA, angleA, angleB } = sineValues;
@@ -353,10 +401,15 @@ const ObliqueTriangleSolver = () => {
       ? sideB ** 2 + sideC ** 2 - 2 * sideB * sideC * Math.cos(toRadians(angleA))
       : NaN;
     const sideA = sideASquared > 0 ? Math.sqrt(sideASquared) : NaN;
+    const angleB = valid && sideA > 0
+      ? (Math.acos(Math.max(-1, Math.min(1, (sideA ** 2 + sideC ** 2 - sideB ** 2) / (2 * sideA * sideC)))) * 180) / Math.PI
+      : NaN;
     return {
       valid: valid && Number.isFinite(sideA),
       sideASquared,
       sideA,
+      angleB,
+      angleC: valid && Number.isFinite(angleB) ? 180 - angleA - angleB : NaN,
     };
   }, [cosineValues]);
 
@@ -491,40 +544,76 @@ const ObliqueTriangleSolver = () => {
   const updateMode = (nextMode: ObliqueMode) => {
     setMode(nextMode);
     setActiveStep(0);
-    setSelectedQuestionKey('');
+    resetExercise();
   };
 
-  const applyQuestion = (question: ObliqueQuestion) => {
-    setMode(question.mode);
-    setActiveStep(0);
-    setSelectedQuestionKey(question.key);
-
-    if (question.mode === 'sine') {
-      setSineValues(question.values);
-      return;
-    }
-
-    if (question.mode === 'cosine') {
-      setCosineValues(question.values);
-      return;
-    }
-
-    setAreaValues(question.values);
+  const resetExercise = () => {
+    setExerciseStep(0);
+    setExerciseInputs({});
+    setExerciseRule('');
+    setExerciseStatus('unanswered');
+    setExerciseFeedback('');
   };
 
   const updateSineValues = (values: Partial<SineValues>) => {
-    setSelectedQuestionKey('');
     setSineValues((current) => ({ ...current, ...values }));
+    resetExercise();
   };
 
   const updateCosineValues = (values: Partial<CosineValues>) => {
-    setSelectedQuestionKey('');
     setCosineValues((current) => ({ ...current, ...values }));
+    resetExercise();
   };
 
   const updateAreaValues = (values: Partial<AreaValues>) => {
-    setSelectedQuestionKey('');
     setAreaValues((current) => ({ ...current, ...values }));
+    resetExercise();
+  };
+
+  const exerciseValue = (key: string) => Number(exerciseInputs[key]);
+  const isClose = (value: number, expected: number) => Number.isFinite(value) && Math.abs(value - expected) <= 0.1;
+  const exerciseRuleLabel = mode === 'sine' ? 'Sine Rule' : mode === 'cosine' ? 'Cosine Rule' : 'Area Formula';
+
+  const checkExerciseStep = () => {
+    let correct = false;
+    let feedback = '';
+
+    if (exerciseStep === 2) {
+      correct = true;
+      feedback = `Now choose the ${exerciseRuleLabel} in Step 3.`;
+    } else if (exerciseStep === 3) {
+      correct = exerciseRule === exerciseRuleLabel;
+      feedback = correct ? 'Correct formula selected. Now calculate the unknown value.' : `Select the ${exerciseRuleLabel} before continuing.`;
+    } else if (exerciseStep === 4) {
+      if (mode === 'sine') {
+        correct = isClose(exerciseValue('sideB'), sineResult.sideB);
+        feedback = correct ? 'Excellent! You calculated the requested side b correctly.' : 'Check the Sine Rule substitution and round to 2 decimal places.';
+      } else if (mode === 'cosine') {
+        correct = isClose(exerciseValue('sideA'), cosineResult.sideA);
+        feedback = correct ? 'Excellent! You calculated the requested side a correctly.' : 'Check the Cosine Rule substitution and round to 2 decimal places.';
+      } else {
+        correct = isClose(exerciseValue('area'), areaResult.area);
+        feedback = correct ? 'Excellent! You calculated the area K correctly.' : 'Check the area formula and round to 2 decimal places.';
+      }
+    } else if (exerciseStep === 5) {
+      correct = true;
+      feedback = '🎉 Great work! You completed the oblique-triangle exercise.';
+    }
+
+    setExerciseStatus(correct ? 'correct' : 'incorrect');
+    setExerciseFeedback(feedback);
+    if (correct && exerciseStep < 5) {
+      window.setTimeout(() => {
+        setExerciseStep((current) => current + 1);
+        setExerciseStatus('unanswered');
+        setExerciseFeedback('');
+      }, 350);
+    }
+  };
+
+  const startExercise = () => {
+    resetExercise();
+    setExerciseStep(1);
   };
 
   const questionValues = {
@@ -537,9 +626,42 @@ const ObliqueTriangleSolver = () => {
     sine: sineResult.valid
       ? [`∠C = ${rounded(sineResult.angleC, 0)}°`, `b = ${rounded(sineResult.sideB)} cm`, `c = ${rounded(sineResult.sideC)} cm`]
       : ['Check the input values'],
-    cosine: cosineResult.valid ? [`a = ${rounded(cosineResult.sideA)} cm`] : ['Check the input values'],
-    area: areaResult.valid ? [`K = ${rounded(areaResult.area)} cm²`] : ['Check the input values'],
+    cosine: cosineResult.valid
+      ? [`A = ${cosineValues.angleA}°`, `a = ${rounded(cosineResult.sideA)} cm`, `B = ${rounded(cosineResult.angleB, 0)}°`, `b = ${cosineValues.sideB} cm`, `C = ${rounded(cosineResult.angleC, 0)}°`, `c = ${cosineValues.sideC} cm`]
+      : ['Check the input values'],
+    area: areaResult.valid && cosineResult.valid
+      ? [`A = ${areaValues.angleA}°`, `a = ${rounded(cosineResult.sideA)} cm`, `B = ${rounded(cosineResult.angleB, 0)}°`, `b = ${areaValues.sideB} cm`, `C = ${rounded(cosineResult.angleC, 0)}°`, `c = ${areaValues.sideC} cm`, `K = ${rounded(areaResult.area)} cm²`]
+      : ['Check the input values'],
   }[mode];
+
+  const requestedAnswer = mode === 'sine'
+    ? `b = ${rounded(sineResult.sideB)} cm`
+    : mode === 'cosine'
+      ? `a = ${rounded(cosineResult.sideA)} cm`
+      : `K = ${rounded(areaResult.area)} cm²`;
+  const exerciseTarget = mode === 'sine' ? 'b' : mode === 'cosine' ? 'a' : 'K';
+
+  const calculationGuide = mode === 'sine' ? (
+    <div className="mt-3 space-y-2 rounded-xl bg-purple-50 p-4 text-sm text-purple-950">
+      <p className="font-bold">Question: Find side b using the known pair a and A.</p>
+      <p className="font-serif text-base">b = <Fraction numerator={`a sin B`} denominator={`sin A`} /> = <Fraction numerator={`${sineValues.sideA} sin ${sineValues.angleB}°`} denominator={`sin ${sineValues.angleA}°`} /> = {rounded(sineResult.sideB)} cm</p>
+    </div>
+  ) : mode === 'cosine' ? (
+    <div className="mt-3 space-y-2 rounded-xl bg-purple-50 p-4 text-sm text-purple-950">
+      <p className="font-bold">Find the missing side a using the included angle A:</p>
+      <p className="font-serif text-base">a² = b² + c² − 2bc cos A</p>
+      <p className="font-serif text-base">a² = {cosineValues.sideB}² + {cosineValues.sideC}² − 2({cosineValues.sideB})({cosineValues.sideC}) cos {cosineValues.angleA}° = {rounded(cosineResult.sideASquared, 2)}</p>
+      <p className="font-serif text-base">a = √{rounded(cosineResult.sideASquared, 2)} = {rounded(cosineResult.sideA)} cm</p>
+      <p className="font-bold">Question: Find side a, then round your answer to 2 decimal places.</p>
+    </div>
+  ) : (
+    <div className="mt-3 space-y-2 rounded-xl bg-purple-50 p-4 text-sm text-purple-950">
+      <p className="font-bold">Use the two given sides and their included angle:</p>
+      <p className="font-serif text-base">K = ½bc sin A</p>
+      <p className="font-serif text-base">K = ½({areaValues.sideB})({areaValues.sideC}) sin {areaValues.angleA}° = {rounded(areaResult.area)} cm²</p>
+      <p className="font-bold">Question: Find the area K and round your answer to 2 decimal places.</p>
+    </div>
+  );
 
   return (
     <section className="space-y-6">
@@ -568,30 +690,6 @@ const ObliqueTriangleSolver = () => {
                 >
                   <span className="block font-extrabold">{option.label}</span>
                   <span className="mt-1 block text-sm">{option.description}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <p className="text-sm font-bold text-slate-700">Question bank</p>
-            <div className="mt-2 max-h-[330px] space-y-2 overflow-y-auto pr-1">
-              {questionBank.map((question) => (
-                <button
-                  key={question.key}
-                  type="button"
-                  onClick={() => applyQuestion(question)}
-                  className={`w-full rounded-xl border p-3 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 ${
-                    selectedQuestionKey === question.key
-                      ? 'border-emerald-300 bg-emerald-50 text-emerald-950'
-                      : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-                  }`}
-                >
-                  <span className="flex items-center justify-between gap-2">
-                    <span className="text-sm font-extrabold">{question.title}</span>
-                    <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-extrabold uppercase tracking-wide text-slate-600">{question.mode}</span>
-                  </span>
-                  <span className="mt-1 block text-xs font-semibold text-slate-500">{question.source}</span>
                 </button>
               ))}
             </div>
@@ -642,6 +740,132 @@ const ObliqueTriangleSolver = () => {
                 </div>
               </div>
             </div>
+          </div>
+
+          <div className="rounded-2xl border border-white bg-white/90 p-5 shadow-lg sm:p-6">
+            <div className="text-center">
+              <h3 className="text-2xl font-extrabold text-slate-900">Interactive Exercise: Solve Step-by-Step</h3>
+              <p className="mt-2 text-slate-700">
+                Follow the plan, enter each answer, and check your work before moving on.
+              </p>
+              {exerciseStep === 0 && (
+                <button
+                  type="button"
+                  onClick={startExercise}
+                  className="mt-4 rounded-full bg-purple-600 px-6 py-2 font-bold text-white shadow-sm transition hover:bg-purple-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
+                >
+                  Start Exercise
+                </button>
+              )}
+            </div>
+
+            {exerciseStep > 0 && (
+              <div className="mt-5 space-y-4">
+                <ExerciseProgress currentStep={exerciseStep} onStepSelect={setExerciseStep} />
+
+                {exerciseStep >= 1 && (
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <h4 className="font-extrabold text-slate-900">Step 1: Given Information</h4>
+                    <p className="mt-2 text-slate-700">Read the triangle using the standard labels. Blue values are given; green values are calculated.</p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {questionValues.map((value) => (
+                        <span key={value} className="rounded-lg bg-blue-100 px-3 py-2 text-sm font-bold text-blue-900">{value}</span>
+                      ))}
+                    </div>
+                    <div className="mt-3 grid grid-cols-3 gap-2 text-center text-sm font-bold">
+                      {['A', 'a', 'B', 'b', 'C', 'c'].map((label) => (
+                        <span key={label} className="rounded-lg border border-slate-200 bg-white px-2 py-2 text-slate-700">
+                          {label} <span className="text-slate-400">=</span> {label === exerciseTarget ? 'find' : questionValues.some((value) => value.startsWith(`${label} =`) || value.startsWith(`∠${label} =`)) ? 'given' : 'not needed'}
+                        </span>
+                      ))}
+                    </div>
+                    {exerciseStep === 1 && (
+                      <button type="button" onClick={() => setExerciseStep(2)} className="mt-4 rounded-full bg-purple-600 px-5 py-2 font-bold text-white hover:bg-purple-700">
+                        Continue to Plan
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {exerciseStep >= 2 && (
+                  <div className="rounded-xl border border-slate-200 bg-white p-4">
+                    <h4 className="font-extrabold text-slate-900">Step 2: Make a Plan</h4>
+                    <p className="mt-2 text-slate-700">Read the worked calculation, then choose the rule in Step 3. This exercise asks for one value only.</p>
+                    {calculationGuide}
+                    <button type="button" onClick={() => setExerciseStep(3)} className="mt-4 rounded-full bg-purple-600 px-5 py-2 font-bold text-white hover:bg-purple-700">
+                      Continue to Formula
+                    </button>
+                  </div>
+                )}
+
+                {exerciseStep >= 3 && (
+                  <div className="rounded-xl border border-slate-200 bg-white p-4">
+                    <h4 className="font-extrabold text-slate-900">Step 3: Choose the Formula</h4>
+                    <p className="mt-2 text-slate-700">Select the formula you will use for the calculation.</p>
+                    <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                      {modeOptions.map((option) => (
+                        <button
+                          key={option.key}
+                          type="button"
+                          onClick={() => {
+                            setExerciseRule(option.label);
+                            setExerciseStatus('unanswered');
+                            setExerciseFeedback('');
+                          }}
+                          className={`rounded-lg border px-3 py-3 text-sm font-bold ${exerciseRule === option.label ? 'border-purple-500 bg-purple-100 text-purple-900' : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'}`}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                    <button type="button" onClick={checkExerciseStep} className="mt-4 rounded-full bg-purple-600 px-5 py-2 font-bold text-white hover:bg-purple-700">
+                      Check
+                    </button>
+                    {exerciseStep === 3 && exerciseFeedback && <p role="status" className={`mt-2 font-semibold ${exerciseStatus === 'correct' ? 'text-emerald-700' : 'text-red-700'}`}>{exerciseFeedback}</p>}
+                  </div>
+                )}
+
+                {exerciseStep >= 4 && (
+                  <div className="rounded-xl border border-slate-200 bg-white p-4">
+                    <h4 className="font-extrabold text-slate-900">Step 4: Calculate the Unknown</h4>
+                    <p className="mt-2 text-slate-700">Complete this one calculation using the substituted formula from Step 2.</p>
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                      {mode === 'sine' && (
+                        <>
+                          <label className="font-bold text-slate-800">b = <input type="number" value={exerciseInputs.sideB || ''} onChange={(event) => setExerciseInputs((current) => ({ ...current, sideB: event.target.value }))} className="ml-2 w-32 rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-purple-500" /> cm</label>
+                        </>
+                      )}
+                      {mode === 'cosine' && (
+                        <>
+                          <label className="font-bold text-slate-800">a = <input type="number" value={exerciseInputs.sideA || ''} onChange={(event) => setExerciseInputs((current) => ({ ...current, sideA: event.target.value }))} className="ml-2 w-32 rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-purple-500" /> cm</label>
+                        </>
+                      )}
+                      {mode === 'area' && (
+                        <>
+                          <label className="font-bold text-slate-800">K = <input type="number" value={exerciseInputs.area || ''} onChange={(event) => setExerciseInputs((current) => ({ ...current, area: event.target.value }))} className="ml-2 w-32 rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-purple-500" /> cm²</label>
+                        </>
+                      )}
+                    </div>
+                    <button type="button" onClick={checkExerciseStep} className="mt-4 rounded-full bg-purple-600 px-5 py-2 font-bold text-white hover:bg-purple-700">
+                      Check
+                    </button>
+                    {exerciseStep === 4 && exerciseFeedback && <p role="status" className={`mt-2 font-semibold ${exerciseStatus === 'correct' ? 'text-emerald-700' : 'text-red-700'}`}>{exerciseFeedback}</p>}
+                  </div>
+                )}
+
+                {exerciseStep >= 5 && (
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+                    <h4 className="font-extrabold text-emerald-950">Step 5: Final Answer</h4>
+                    <p className="mt-2 text-emerald-900">The answer to this exercise is:</p>
+                    <p className="mt-2 text-lg font-extrabold text-emerald-950">{requestedAnswer}</p>
+                    <button type="button" onClick={checkExerciseStep} className="mt-4 rounded-full bg-emerald-600 px-5 py-2 font-bold text-white hover:bg-emerald-700">
+                      Finish Exercise
+                    </button>
+                    {exerciseStep === 5 && exerciseFeedback && <p role="status" className="mt-2 font-semibold text-emerald-800">{exerciseFeedback}</p>}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="grid gap-4 md:grid-cols-3">
