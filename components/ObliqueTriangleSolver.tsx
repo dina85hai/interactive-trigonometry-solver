@@ -665,6 +665,83 @@ const GuidedCosineOrAreaExercise = ({
   </section>;
 };
 
+const ExerciseProgress = ({
+  currentStep,
+  onStepSelect,
+}: {
+  currentStep: number;
+  onStepSelect: (step: number) => void;
+}) => (
+  <div className="flex items-center gap-2" role="tablist" aria-label="Exercise steps">
+    {[1, 2, 3, 4, 5].map((step) => (
+      <button
+        key={step}
+        type="button"
+        role="tab"
+        aria-selected={currentStep === step}
+        aria-label={`Go to step ${step}`}
+        onClick={() => onStepSelect(step)}
+        className={`h-3 flex-1 rounded-full transition ${
+          step <= currentStep ? 'bg-purple-600' : 'bg-slate-200'
+        } ${step === currentStep ? 'ring-2 ring-purple-300 ring-offset-1' : ''}`}
+      />
+    ))}
+  </div>
+);
+
+const exerciseHintBank: Record<ObliqueMode, string[]> = {
+  sine: [
+    'Two angles and one opposite side are given — that is an AAS case.',
+    'Use the Sine Rule: a/sin(A) = b/sin(B), then solve for b.',
+    'b = (a × sin(B)) / sin(A). Substitute the given values and round to 2 decimal places.',
+  ],
+  cosine: [
+    'Two sides and the included angle are given — that is an SAS case.',
+    'Use the Cosine Rule: a² = b² + c² − 2bc cos A.',
+    'Calculate a² first, then take the square root and round to 2 decimal places.',
+  ],
+  area: [
+    'Two sides and the included angle between them are given.',
+    'Use the Area Formula: K = ½ × b × c × sin(A).',
+    'Multiply b, c, and sin(A), then take half of the result and round to 2 decimal places.',
+  ],
+};
+
+const HintSystem = ({
+  mode,
+  hintLevel,
+  onShowHint,
+  attempts,
+}: {
+  mode: ObliqueMode;
+  hintLevel: HintLevel;
+  onShowHint: (level: HintLevel) => void;
+  attempts: number;
+}) => (
+  <div className="rounded-xl border border-yellow-300 bg-yellow-50 p-4">
+    <div className="flex items-center justify-between">
+      <h4 className="font-extrabold text-yellow-900">💡 Hints ({hintLevel}/3)</h4>
+      {attempts > 0 && (
+        <span className="text-xs font-bold text-yellow-700">{attempts} attempt{attempts === 1 ? '' : 's'}</span>
+      )}
+    </div>
+    <ul className="mt-2 space-y-2 text-sm font-semibold text-yellow-900">
+      {exerciseHintBank[mode].slice(0, hintLevel).map((hint, index) => (
+        <li key={index}>{index + 1}. {hint}</li>
+      ))}
+    </ul>
+    {hintLevel < 3 && (
+      <button
+        type="button"
+        onClick={() => onShowHint(Math.min(3, hintLevel + 1) as HintLevel)}
+        className="mt-3 rounded-full bg-yellow-500 px-4 py-1.5 text-sm font-bold text-white hover:bg-yellow-600"
+      >
+        Show next hint
+      </button>
+    )}
+  </div>
+);
+
 const ObliqueTriangleSolver = () => {
   const [mode, setMode] = useState<ObliqueMode>('sine');
   const [activeStep, setActiveStep] = useState(0);
@@ -674,6 +751,14 @@ const ObliqueTriangleSolver = () => {
   const [practiceAnswers, setPracticeAnswers] = useState<Record<string, string>>({});
   const [practiceFeedback, setPracticeFeedback] = useState('');
   const [labellingAnswers, setLabellingAnswers] = useState<Record<string, string>>({});
+  const [selectedQuestionKey, setSelectedQuestionKey] = useState('');
+  const [exerciseStep, setExerciseStep] = useState(0);
+  const [exerciseInputs, setExerciseInputs] = useState<Record<string, string>>({});
+  const [exerciseRule, setExerciseRule] = useState('');
+  const [exerciseStatus, setExerciseStatus] = useState<ExerciseStatus>('unanswered');
+  const [exerciseFeedback, setExerciseFeedback] = useState('');
+  const [hintLevel, setHintLevel] = useState<HintLevel>(0);
+  const [hintAttempts, setHintAttempts] = useState(0);
 
   const sineResult = useMemo(() => {
     const { sideA, angleA, angleB } = sineValues;
@@ -855,6 +940,16 @@ const ObliqueTriangleSolver = () => {
     setLabellingAnswers((current) => ({ ...current, [key]: value }));
   };
 
+  const resetExercise = () => {
+    setExerciseStep(0);
+    setExerciseInputs({});
+    setExerciseRule('');
+    setExerciseStatus('unanswered');
+    setExerciseFeedback('');
+    setHintLevel(0);
+    setHintAttempts(0);
+  };
+
   const updateMode = (nextMode: ObliqueMode) => {
     setMode(nextMode);
     setActiveStep(0);
@@ -862,6 +957,7 @@ const ObliqueTriangleSolver = () => {
     setPracticeAnswers({});
     setPracticeFeedback('');
     setLabellingAnswers({});
+    resetExercise();
   };
 
   const applyQuestion = (question: ObliqueQuestion) => {
@@ -871,6 +967,7 @@ const ObliqueTriangleSolver = () => {
     setPracticeAnswers({});
     setPracticeFeedback('');
     setLabellingAnswers({});
+    resetExercise();
 
     if (question.mode === 'sine') {
       setSineValues(question.values);
@@ -890,6 +987,7 @@ const ObliqueTriangleSolver = () => {
     setPracticeAnswers({});
     setPracticeFeedback('');
     setLabellingAnswers({});
+    resetExercise();
   };
 
   const updateCosineValues = (values: Partial<CosineValues>) => {
@@ -897,6 +995,7 @@ const ObliqueTriangleSolver = () => {
     setPracticeAnswers({});
     setPracticeFeedback('');
     setLabellingAnswers({});
+    resetExercise();
   };
 
   const updateAreaValues = (values: Partial<AreaValues>) => {
@@ -904,6 +1003,7 @@ const ObliqueTriangleSolver = () => {
     setPracticeAnswers({});
     setPracticeFeedback('');
     setLabellingAnswers({});
+    resetExercise();
   };
 
   const questionValues = {
@@ -951,6 +1051,54 @@ const ObliqueTriangleSolver = () => {
   const clearPractice = () => {
     setPracticeAnswers({});
     setPracticeFeedback('');
+  };
+
+  const exerciseTarget = mode === 'sine' ? 'b' : mode === 'cosine' ? 'a' : '';
+  const exerciseInputKey = mode === 'sine' ? 'sideB' : mode === 'cosine' ? 'sideA' : 'area';
+  const exerciseAnswerValue = mode === 'sine' ? sineResult.sideB : mode === 'cosine' ? cosineResult.sideA : areaResult.area;
+  const exerciseAnswerUnit = mode === 'area' ? 'cm²' : 'cm';
+  const correctExerciseRule = modeOptions.find((option) => option.key === mode)?.label ?? '';
+
+  const requestedAnswer = Number.isFinite(exerciseAnswerValue)
+    ? `${exerciseTarget || 'K'} = ${rounded(exerciseAnswerValue)} ${exerciseAnswerUnit}`
+    : 'Check the input values above.';
+
+  const calculationGuide = (
+    <p className="mt-3 rounded-xl bg-slate-50 p-4 font-serif text-slate-800">
+      {mode === 'sine' && (
+        <>Two angles and one opposite side are known (AAS), so use the Sine Rule: <Fraction numerator="a" denominator="sin A" /> = <Fraction numerator="b" denominator="sin B" /> to find side b.</>
+      )}
+      {mode === 'cosine' && <>Two sides and the included angle are known (SAS), so use the Cosine Rule: a² = b² + c² − 2bc cos A to find side a.</>}
+      {mode === 'area' && <>Two sides and the included angle are known, so use the Area Formula: K = <HalfFormula />bc sin A.</>}
+    </p>
+  );
+
+  const checkExerciseStep = () => {
+    if (exerciseStep === 3) {
+      const correct = exerciseRule === correctExerciseRule;
+      setExerciseStatus(correct ? 'correct' : 'incorrect');
+      setExerciseFeedback(correct ? 'Correct! That is the right formula for this question.' : `Not quite. ${correctExerciseRule} is the formula to use here.`);
+      return;
+    }
+
+    if (exerciseStep === 4) {
+      const entered = Number(exerciseInputs[exerciseInputKey]);
+      const correct = Number.isFinite(entered) && Number.isFinite(exerciseAnswerValue) && Math.abs(entered - exerciseAnswerValue) < 0.06;
+      setExerciseStatus(correct ? 'correct' : 'incorrect');
+      setExerciseFeedback(correct ? 'Correct! Continue to see the final answer.' : 'Not quite. Recheck your substitution and try again.');
+      return;
+    }
+
+    if (exerciseStep === 5) {
+      setExerciseStatus('correct');
+      setExerciseFeedback('Great work — exercise complete!');
+    }
+  };
+
+  const goToStep = (step: number) => {
+    setExerciseStep(step);
+    setExerciseStatus('unanswered');
+    setExerciseFeedback('');
   };
 
   return (
@@ -1053,14 +1201,14 @@ const ObliqueTriangleSolver = () => {
                 <div className="mt-4 flex flex-wrap justify-center gap-2">
                   <button
                     type="button"
-                    onClick={() => setExerciseStep(Math.max(1, exerciseStep - 1))}
+                    onClick={() => goToStep(Math.max(1, exerciseStep - 1))}
                     className="rounded-full border border-slate-300 bg-white px-4 py-2 font-bold text-slate-700 hover:bg-slate-100"
                   >
                     ⬅ Previous
                   </button>
                   <button
                     type="button"
-                    onClick={() => setExerciseStep(Math.min(5, exerciseStep + 1))}
+                    onClick={() => goToStep(Math.min(5, exerciseStep + 1))}
                     className="rounded-full border border-slate-300 bg-white px-4 py-2 font-bold text-slate-700 hover:bg-slate-100"
                   >
                     Next Step ➡
@@ -1074,31 +1222,14 @@ const ObliqueTriangleSolver = () => {
                   </button>
                   <button
                     type="button"
-                    onClick={() => {
-                      setExerciseStep(0);
-                      setExerciseInputs({});
-                      setExerciseRule('');
-                      setExerciseStatus('unanswered');
-                      setExerciseFeedback('');
-                      setHintLevel(0);
-                      setHintAttempts(0);
-                    }}
+                    onClick={resetExercise}
                     className="rounded-full border border-slate-300 bg-white px-4 py-2 font-bold text-slate-700 hover:bg-slate-100"
                   >
                     🔄 Reset
                   </button>
                   <button
                     type="button"
-                    onClick={() => {
-                      setMode(mode === 'sine' ? 'cosine' : mode === 'cosine' ? 'area' : 'sine');
-                      setExerciseStep(0);
-                      setExerciseInputs({});
-                      setExerciseRule('');
-                      setExerciseStatus('unanswered');
-                      setExerciseFeedback('');
-                      setHintLevel(0);
-                      setHintAttempts(0);
-                    }}
+                    onClick={() => updateMode(mode === 'sine' ? 'cosine' : mode === 'cosine' ? 'area' : 'sine')}
                     className="rounded-full bg-purple-600 px-4 py-2 font-bold text-white hover:bg-purple-700"
                   >
                     ✨ New
@@ -1128,7 +1259,7 @@ const ObliqueTriangleSolver = () => {
                   <div className="flex items-center justify-between mb-2">
                     <p className="text-sm font-bold text-slate-700">Step {exerciseStep} of 5</p>
                   </div>
-                  <ExerciseProgress currentStep={exerciseStep} onStepSelect={setExerciseStep} />
+                  <ExerciseProgress currentStep={exerciseStep} onStepSelect={goToStep} />
                 </div>
 
                 {exerciseStep >= 1 && (
@@ -1148,7 +1279,7 @@ const ObliqueTriangleSolver = () => {
                       ))}
                     </div>
                     {exerciseStep === 1 && (
-                      <button type="button" onClick={() => setExerciseStep(2)} className="mt-4 rounded-full bg-purple-600 px-5 py-2 font-bold text-white hover:bg-purple-700">
+                      <button type="button" onClick={() => goToStep(2)} className="mt-4 rounded-full bg-purple-600 px-5 py-2 font-bold text-white hover:bg-purple-700">
                         Continue to Plan →
                       </button>
                     )}
@@ -1160,7 +1291,7 @@ const ObliqueTriangleSolver = () => {
                     <h4 className="font-extrabold text-slate-900">✓ Step 2: Make a Plan</h4>
                     <p className="mt-2 text-slate-700">Read the worked calculation, then choose the rule in Step 3. This exercise asks for one value only.</p>
                     {calculationGuide}
-                    <button type="button" onClick={() => setExerciseStep(3)} className="mt-4 rounded-full bg-purple-600 px-5 py-2 font-bold text-white hover:bg-purple-700">
+                    <button type="button" onClick={() => goToStep(3)} className="mt-4 rounded-full bg-purple-600 px-5 py-2 font-bold text-white hover:bg-purple-700">
                       Continue to Formula →
                     </button>
                   </div>
