@@ -583,6 +583,14 @@ const GuidedSineExercise = ({
   const answerCorrect = Math.abs(Number(answer) - result.sideB) < 0.06;
   const next = (message: string) => { setFeedback(message); setStep((current) => Math.min(4, current + 1)); };
   const inputClass = 'h-12 w-20 rounded-lg border-2 border-blue-500 bg-white px-2 text-center text-lg font-extrabold text-slate-900 outline-none focus:border-purple-600 sm:w-24';
+  const diagramValues: Record<'labelA' | 'labelB' | 'labelC' | 'sideA' | 'sideB' | 'sideC', DiagramValue> = {
+    labelA: { text: `∠A = ${values.angleA}°`, kind: 'given' },
+    labelB: { text: `∠B = ${values.angleB}°`, kind: 'given' },
+    labelC: { text: result.valid ? `∠C = ${rounded(result.angleC, 0)}°` : '∠C', kind: result.valid ? 'given' : 'unknown' },
+    sideA: { text: `a = ${values.sideA} cm`, kind: 'given' },
+    sideB: { text: step >= 4 ? `b = ${rounded(result.sideB)} cm` : 'b', kind: step >= 4 ? 'answer' : 'unknown' },
+    sideC: { text: 'c', kind: 'unknown' },
+  };
 
   return (
     <section className="rounded-2xl border border-purple-200 bg-white p-4 shadow-lg sm:p-6">
@@ -591,9 +599,15 @@ const GuidedSineExercise = ({
         {['Label', 'Choose rule', 'Substitute', 'Calculate'].map((name, index) => <div key={name} className={`rounded-lg px-2 py-2 ${step >= index + 1 ? 'bg-purple-100 text-purple-800' : 'bg-slate-100 text-slate-500'}`}>{index + 1}. {name}</div>)}
       </div>
 
+      <div className="mx-auto mt-4 max-w-md">
+        <TriangleDiagram
+          {...diagramValues}
+          labelling={step === 1 ? { answers: labels, onChange: (key, value) => { setLabels((current) => ({ ...current, [key]: value })); setFeedback(''); }, complete: labelsCorrect, fields: labelFields } : undefined}
+        />
+      </div>
+
       {step === 1 && <div className="mt-5">
         <p className="font-bold text-slate-800">Label the information given: ∠A = {values.angleA}°, ∠B = {values.angleB}°, and a = {values.sideA} cm.</p>
-        <div className="mx-auto mt-4 max-w-md"><TriangleDiagram labelA={{ text: '', kind: 'unknown' }} labelB={{ text: '', kind: 'unknown' }} labelC={{ text: '', kind: 'unknown' }} sideA={{ text: '', kind: 'unknown' }} sideB={{ text: '', kind: 'unknown' }} sideC={{ text: '', kind: 'unknown' }} labelling={{ answers: labels, onChange: (key, value) => { setLabels((current) => ({ ...current, [key]: value })); setFeedback(''); }, complete: labelsCorrect, fields: labelFields }} /></div>
         <button type="button" onClick={() => labelsCorrect ? next('Correct. Now choose the formula.') : setFeedback('Label vertex A, vertex B, and side a before continuing.')} className="mt-4 w-full rounded-xl bg-purple-600 px-5 py-3 font-extrabold text-white hover:bg-purple-700">Check labels</button>
       </div>}
 
@@ -653,11 +667,25 @@ const GuidedCosineOrAreaExercise = ({
   const answerCorrect = Math.abs(Number(calculation) - answer) < 0.06;
   const next = (message: string) => { setFeedback(message); setStep((current) => Math.min(4, current + 1)); };
   const inputClass = 'h-12 w-20 rounded-lg border-2 border-blue-500 bg-white px-2 text-center text-lg font-extrabold text-slate-900 outline-none focus:border-purple-600 sm:w-24';
+  const diagramValues: Record<'labelA' | 'labelB' | 'labelC' | 'sideA' | 'sideB' | 'sideC', DiagramValue> = {
+    labelA: { text: `∠A = ${values.angleA}°`, kind: 'given' },
+    labelB: { text: '∠B', kind: 'unknown' },
+    labelC: { text: '∠C', kind: 'unknown' },
+    sideA: { text: !isArea && step >= 4 ? `a = ${rounded(answer)} cm` : 'a', kind: !isArea && step >= 4 ? 'answer' : 'unknown' },
+    sideB: { text: `b = ${values.sideB} cm`, kind: 'given' },
+    sideC: { text: `c = ${values.sideC} cm`, kind: 'given' },
+  };
 
   return <section className="rounded-2xl border border-purple-200 bg-white p-4 shadow-lg sm:p-6">
     <div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-full bg-purple-600 font-extrabold text-white">{step}</span><h3 className="text-xl font-extrabold text-slate-900">Guided {isArea ? 'Area Formula' : 'Cosine Rule'} Example</h3></div>
     <div className="mt-4 grid grid-cols-4 gap-2 text-center text-xs font-extrabold sm:text-sm">{['Label', 'Choose rule', 'Substitute', 'Calculate'].map((name, index) => <div key={name} className={`rounded-lg px-2 py-2 ${step >= index + 1 ? 'bg-purple-100 text-purple-800' : 'bg-slate-100 text-slate-500'}`}>{index + 1}. {name}</div>)}</div>
-    {step === 1 && <div className="mt-5"><p className="font-bold text-slate-800">Label the information given: ∠A = {values.angleA}°, b = {values.sideB} cm, and c = {values.sideC} cm.</p><div className="mx-auto mt-4 max-w-md"><TriangleDiagram labelA={{ text: '', kind: 'unknown' }} labelB={{ text: '', kind: 'unknown' }} labelC={{ text: '', kind: 'unknown' }} sideA={{ text: '', kind: 'unknown' }} sideB={{ text: '', kind: 'unknown' }} sideC={{ text: '', kind: 'unknown' }} labelling={{ answers: labels, onChange: (key, value) => { setLabels((current) => ({ ...current, [key]: value })); setFeedback(''); }, complete: labelsCorrect, fields }} /></div><button type="button" onClick={() => labelsCorrect ? next('Correct. Now choose the formula.') : setFeedback('Label vertex A and sides b and c before continuing.')} className="mt-4 w-full rounded-xl bg-purple-600 px-5 py-3 font-extrabold text-white">Check labels</button></div>}
+    <div className="mx-auto mt-4 max-w-md">
+      <TriangleDiagram
+        {...diagramValues}
+        labelling={step === 1 ? { answers: labels, onChange: (key, value) => { setLabels((current) => ({ ...current, [key]: value })); setFeedback(''); }, complete: labelsCorrect, fields } : undefined}
+      />
+    </div>
+    {step === 1 && <div className="mt-5"><p className="font-bold text-slate-800">Label the information given: ∠A = {values.angleA}°, b = {values.sideB} cm, and c = {values.sideC} cm.</p><button type="button" onClick={() => labelsCorrect ? next('Correct. Now choose the formula.') : setFeedback('Label vertex A and sides b and c before continuing.')} className="mt-4 w-full rounded-xl bg-purple-600 px-5 py-3 font-extrabold text-white">Check labels</button></div>}
     {step === 2 && <div className="mt-5"><p className="font-bold text-slate-800">Choose the formula related to this question.</p><div className="mt-4 grid gap-3 sm:grid-cols-3">{[correctFormula, isArea ? 'Sine Rule' : 'Area Formula', 'tan θ = opposite / adjacent'].map((option) => <button key={option} type="button" onClick={() => { setFormula(option); setFeedback(''); }} className={`rounded-xl border-2 p-4 text-left font-extrabold ${formula === option ? 'border-purple-500 bg-purple-50 text-purple-800' : 'border-slate-200 bg-white text-slate-700'}`}>{option}</button>)}</div><button type="button" onClick={() => formula === correctFormula ? next('Correct. Substitute the values into the formula.') : setFeedback('Try again. Use the rule for two sides and their included angle.')} className="mt-4 w-full rounded-xl bg-purple-600 px-5 py-3 font-extrabold text-white">Check formula</button></div>}
     {step === 3 && <div className="mt-5"><p className="font-bold text-slate-800">Include the given values in {formulaText}.</p><p className="mt-4 text-center font-serif text-xl font-bold text-purple-800">{formulaText}</p><div className="mt-5 flex flex-wrap items-center justify-center gap-3 text-lg font-bold text-slate-800"><label>b = <input aria-label="Given side b" className={inputClass} type="number" value={substitution.sideB ?? ''} onChange={(event) => setSubstitution((current) => ({ ...current, sideB: event.target.value }))} /></label><label>c = <input aria-label="Given side c" className={inputClass} type="number" value={substitution.sideC ?? ''} onChange={(event) => setSubstitution((current) => ({ ...current, sideC: event.target.value }))} /></label><label>∠A = <input aria-label="Given angle A" className={inputClass} type="number" value={substitution.angleA ?? ''} onChange={(event) => setSubstitution((current) => ({ ...current, angleA: event.target.value }))} />°</label></div><button type="button" onClick={() => substitutionCorrect ? next(`Correct. Now calculate ${target} and round to 2 decimal places.`) : setFeedback(`Use b = ${values.sideB}, c = ${values.sideC}, and ∠A = ${values.angleA}°.`)} className="mt-5 w-full rounded-xl bg-purple-600 px-5 py-3 font-extrabold text-white">Check substitution</button></div>}
     {step === 4 && <div className="mt-5 text-center"><p className="font-bold text-slate-800">Calculate {target}.</p><label className="mx-auto mt-5 flex max-w-xs items-center justify-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-xl font-extrabold text-slate-800">{target} = <input aria-label={`Calculated ${target}`} className={inputClass} type="number" step="any" value={calculation} onChange={(event) => { setCalculation(event.target.value); setFeedback(''); }} /><span>{unit}</span></label><button type="button" onClick={() => setFeedback(answerCorrect ? `Excellent! ${target} = ${rounded(answer)} ${unit}.` : 'Try again. Round your answer to 2 decimal places.')} className="mt-5 w-full rounded-xl bg-emerald-600 px-5 py-3 font-extrabold text-white">Check calculation</button></div>}
@@ -1260,6 +1288,10 @@ const ObliqueTriangleSolver = () => {
                     <p className="text-sm font-bold text-slate-700">Step {exerciseStep} of 5</p>
                   </div>
                   <ExerciseProgress currentStep={exerciseStep} onStepSelect={goToStep} />
+                </div>
+
+                <div className="mx-auto max-w-sm">
+                  <TriangleDiagram {...diagramLabels} />
                 </div>
 
                 {exerciseStep >= 1 && (
